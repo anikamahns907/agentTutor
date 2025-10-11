@@ -1,41 +1,44 @@
 import os
 import pickle
 import numpy as np
-import torch
 import streamlit as st
 from dotenv import load_dotenv
 from openai import OpenAI
-from transformers import AutoTokenizer, AutoModel
+from sentence_transformers import SentenceTransformer
 
-# --- Load environment ---
+# --- Load environment variables ---
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # --- Load local embeddings index ---
-with open("index/index.pkl", "rb") as f:
-    data = pickle.load(f)
+@st.cache_resource
+def load_index():
+    with open("index/index.pkl", "rb") as f:
+        data = pickle.load(f)
+    return data["texts"], data["embs"]
 
-texts, embs = data["texts"], data["embs"]
+texts, embs = load_index()
 
-# --- Load embedding model ---
-MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
-tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-model = AutoModel.from_pretrained(MODEL_NAME)
+# --- Load embedding model (lightweight) ---
+@st.cache_resource
+def load_model():
+    return SentenceTransformer("all-MiniLM-L6-v2")
 
-# --- Helper functions ---
+model = load_model()
+
+# --- Helper: embed a query ---
 def embed_query(text):
-    inputs = tokenizer([text], padding=True, truncation=True, return_tensors="pt")
-    with torch.no_grad():
-        outputs = model(**inputs)
-    vec = outputs.last_hidden_state.mean(dim=1).numpy()[0]
+    vec = model.encode([text])[0]
     return vec / np.linalg.norm(vec)
 
+# --- Helper: answer question using context + GPT ---
 def answer_question(query, top_k=5):
     q_emb = embed_query(query)
     sims = np.dot(embs, q_emb)
     top = np.argsort(sims)[-top_k:][::-1]
     context = "\n\n".join(texts[i] for i in top)
-    prompt = f"Context:\n{context}\n\nQuestion: {query}\n\nAnswer clearly based only on the context."
+    prompt = f"Context:\n{context}\n\nQuestion: {query}\n\nAnswer concisely and clearly based only on the context above."
+
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
@@ -46,9 +49,10 @@ def answer_question(query, top_k=5):
 # --- Streamlit UI ---
 st.set_page_config(page_title="Tutor Agent", page_icon="📘")
 st.title("📘 AI Tutor Agent")
-st.write("Ask questions directly from your class materials!")
+st.write("Ask questions directly from your uploaded class materials!")
 
 user_input = st.text_input("Ask a question about your course materials:")
+
 if user_input:
     with st.spinner("Thinking..."):
         answer = answer_question(user_input)
