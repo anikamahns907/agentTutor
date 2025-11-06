@@ -78,10 +78,7 @@ An AI agent that:
 agentTutor/
 ├── app.py                      # Main Streamlit application
 ├── scripts/
-│   ├── ingest_docs_safe.py     # Document ingestion system
-│   ├── organize_files.py       # Organize Canvas files
-│   ├── canvas_downloader.py    # Canvas API integration (optional)
-│   └── article_processor.py    # Process journal articles
+│   └── ingest_docs_safe.py     # Document ingestion system
 ├── docs/                        # Lecture slides and handouts
 ├── assessments/                 # Homework, quizzes, solutions
 ├── data/                        # Data files (CSV, Excel)

@@ -435,28 +435,252 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Simple CSS - minimal styling
+# Dark theme CSS - black background, white text
 st.markdown("""
 <style>
-    /* Simple, clean design with black text on white background */
-    .main-header {
-        font-size: 1.8rem;
-        font-weight: 600;
-        color: #000;
-        margin-bottom: 0.5rem;
+    /* Dark theme color scheme */
+    :root {
+        --primary-color: #3b82f6;
+        --primary-dark: #2563eb;
+        --text-primary: #ffffff;
+        --text-secondary: #d1d5db;
+        --bg-dark: #000000;
+        --bg-secondary: #1a1a1a;
+        --border-color: #333333;
     }
-    .subheader {
-        font-size: 1rem;
-        color: #333;
-        margin-bottom: 1rem;
+    
+    /* Main background - black */
+    .main {
+        background-color: var(--bg-dark) !important;
+    }
+    
+    .main .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+        background-color: var(--bg-dark) !important;
+    }
+    
+    /* All text - white */
+    .main .stMarkdown,
+    .main .stMarkdown p,
+    .main .stMarkdown li,
+    .main .stMarkdown span,
+    .main .stMarkdown div,
+    .main p,
+    .main span,
+    .main div,
+    .main label,
+    .main h1,
+    .main h2,
+    .main h3,
+    .main h4,
+    .main h5,
+    .main h6 {
+        color: var(--text-primary) !important;
+    }
+    
+    /* Headers */
+    h1, h2, h3, h4, h5, h6 {
+        color: var(--text-primary) !important;
+        font-weight: 600;
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    /* Sidebar - dark background */
+    [data-testid="stSidebar"] {
+        background-color: var(--bg-secondary) !important;
+    }
+    
+    [data-testid="stSidebar"] .stMarkdown,
+    [data-testid="stSidebar"] p,
+    [data-testid="stSidebar"] span,
+    [data-testid="stSidebar"] div,
+    [data-testid="stSidebar"] label,
+    [data-testid="stSidebar"] h1,
+    [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] h3 {
+        color: var(--text-primary) !important;
+    }
+    
+    [data-testid="stSidebar"] .css-1d391kg {
+        padding-top: 2rem;
+        background-color: var(--bg-secondary) !important;
+    }
+    
+    /* Chat messages */
+    [data-testid="stChatMessage"] {
+        margin: 1rem 0;
+    }
+    
+    [data-testid="stChatMessage"] .stMarkdown,
+    [data-testid="stChatMessage"] p,
+    [data-testid="stChatMessage"] span,
+    [data-testid="stChatMessage"] div {
+        color: var(--text-primary) !important;
+    }
+    
+    /* Input fields - dark theme */
+    .stTextInput > div > div > input {
+        background-color: var(--bg-secondary) !important;
+        color: var(--text-primary) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 6px;
+    }
+    
+    .stTextArea > div > div > textarea {
+        background-color: var(--bg-secondary) !important;
+        color: var(--text-primary) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 6px;
+    }
+    
+    /* Select boxes - dark theme */
+    .stSelectbox > div > div {
+        background-color: var(--bg-secondary) !important;
+    }
+    
+    .stSelectbox label,
+    .stRadio label,
+    .stTextInput label,
+    .stTextArea label {
+        color: var(--text-primary) !important;
+    }
+    
+    /* Radio buttons - dark theme */
+    .stRadio > div {
+        background-color: transparent !important;
+    }
+    
+    .stRadio label {
+        color: var(--text-primary) !important;
+    }
+    
+    /* Input placeholders */
+    input::placeholder,
+    textarea::placeholder {
+        color: var(--text-secondary) !important;
+    }
+    
+    /* Links */
+    a {
+        color: var(--primary-color) !important;
+    }
+    
+    /* Status indicators - dark theme */
+    .stSuccess {
+        background-color: #064e3b !important;
+        border-left: 4px solid #10b981;
+        padding: 0.75rem 1rem;
+        border-radius: 4px;
+    }
+    
+    .stSuccess * {
+        color: #6ee7b7 !important;
+    }
+    
+    .stError {
+        background-color: #7f1d1d !important;
+        border-left: 4px solid #ef4444;
+        padding: 0.75rem 1rem;
+        border-radius: 4px;
+    }
+    
+    .stError * {
+        color: #fca5a5 !important;
+    }
+    
+    .stInfo {
+        background-color: #1e3a8a !important;
+        border-left: 4px solid #3b82f6;
+    }
+    
+    .stInfo * {
+        color: #93c5fd !important;
+    }
+    
+    /* Buttons */
+    .stButton > button {
+        background-color: var(--primary-color) !important;
+        color: white !important;
+        border: none;
+        border-radius: 6px;
+        padding: 0.5rem 1rem;
+        font-weight: 500;
+        transition: background-color 0.2s;
+    }
+    
+    .stButton > button:hover {
+        background-color: var(--primary-dark) !important;
+        color: white !important;
+    }
+    
+    .stButton > button * {
+        color: white !important;
+    }
+    
+    /* Download button */
+    .stDownloadButton > button {
+        background-color: var(--primary-color) !important;
+        color: white !important;
+    }
+    
+    /* Link button */
+    .stLinkButton > a {
+        background-color: var(--primary-color) !important;
+        color: white !important;
+    }
+    
+    /* Expander - dark theme */
+    .streamlit-expanderHeader {
+        background-color: var(--bg-secondary) !important;
+        color: var(--text-primary) !important;
+    }
+    
+    .streamlit-expanderContent {
+        background-color: var(--bg-secondary) !important;
+    }
+    
+    /* File uploader */
+    .stFileUploader {
+        background-color: var(--bg-secondary) !important;
+    }
+    
+    .stFileUploader label {
+        color: var(--text-primary) !important;
+    }
+    
+    /* Dividers */
+    hr {
+        margin: 2rem 0;
+        border: none;
+        border-top: 1px solid var(--border-color) !important;
+    }
+    
+    /* Caption */
+    .stCaption {
+        color: var(--text-secondary) !important;
+    }
+    
+    /* Remove Streamlit branding */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Chat input */
+    .stChatInput > div > div > input {
+        background-color: var(--bg-secondary) !important;
+        color: var(--text-primary) !important;
+        border: 1px solid var(--border-color) !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Sidebar - Simple and clean
+# Sidebar - Professional layout
 with st.sidebar:
-    st.markdown("## Isabelle")
-    st.markdown("PHP 1510/2510")
+    st.markdown("### Isabelle")
+    st.markdown("**PHP 1510/2510**")
+    st.markdown("*Principles of Biostatistics*")
     st.markdown("---")
     
     # Mode selection
@@ -465,9 +689,9 @@ with st.sidebar:
         "Choose mode",
         ["conversation", "practice", "article_assignment"],
         format_func=lambda x: {
-            "conversation": "Ask Questions",
-            "practice": "Practice Problems",
-            "article_assignment": "Article Analysis"
+            "conversation": "💬 Ask Questions",
+            "practice": "📝 Practice Problems",
+            "article_assignment": "📄 Article Analysis"
         }[x],
         index=["conversation", "practice", "article_assignment"].index(st.session_state.chat_mode),
         label_visibility="collapsed"
@@ -477,10 +701,15 @@ with st.sidebar:
     st.markdown("---")
     
     # Student level
-    st.markdown("**Level**")
+    st.markdown("**Difficulty Level**")
     level = st.selectbox(
         "Select level",
         ["beginner", "intermediate", "advanced"],
+        format_func=lambda x: {
+            "beginner": "Beginner",
+            "intermediate": "Intermediate",
+            "advanced": "Advanced"
+        }[x],
         index=["beginner", "intermediate", "advanced"].index(st.session_state.student_level),
         label_visibility="collapsed"
     )
@@ -489,7 +718,7 @@ with st.sidebar:
     st.markdown("---")
     
     # Source filter
-    st.markdown("**Filter Sources**")
+    st.markdown("**Source Filter**")
     source_options = ["All", "textbook", "docs", "assessments", "data", "articles"]
     selected_source = st.selectbox(
         "Filter by source",
@@ -500,16 +729,19 @@ with st.sidebar:
     
     st.markdown("---")
     
+    # Actions
+    st.markdown("**Actions**")
+    
     # Export
     if st.session_state.messages:
-        if st.button("Export Chat", use_container_width=True):
+        if st.button("📥 Export Chat", use_container_width=True):
             export_buffer, mime_type = export_chat_to_pdf(st.session_state.messages)
             file_ext = ".pdf" if mime_type == "application/pdf" else ".txt"
             file_name = f"chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}{file_ext}"
             label = "Download PDF" if mime_type == "application/pdf" else "Download Text"
             
             if not REPORTLAB_AVAILABLE:
-                st.info("Install 'reportlab' for PDF export")
+                st.info("💡 Install 'reportlab' for PDF export")
             
             st.download_button(
                 label=label,
@@ -520,62 +752,68 @@ with st.sidebar:
             )
     
     # Clear chat
-    if st.button("Clear Chat", use_container_width=True):
+    if st.button("🗑️ Clear Chat", use_container_width=True):
         st.session_state.messages = []
         st.session_state.current_article = None
         st.session_state.assignment_questions = []
         st.rerun()
 
-# Main content - Simple header
-st.markdown("## Isabelle")
-st.markdown("PHP 1510/2510 - Principles of Biostatistics and Data Analysis")
-st.markdown("---")
+# Main content - Professional header
+col1, col2 = st.columns([3, 1])
+with col1:
+    st.markdown("## Isabelle")
+    st.markdown("**PHP 1510/2510 - Principles of Biostatistics and Data Analysis**")
+with col2:
+    # Status indicator
+    if texts is not None and embs is not None and len(texts) > 0 and embs.size > 0:
+        st.success("✓ Ready")
+    else:
+        st.error("⚠ Index not found")
 
-# Status
-if texts is not None and embs is not None and len(texts) > 0 and embs.size > 0:
-    st.success("Ready")
-else:
-    st.error("Index not found - please run ingestion script")
+st.markdown("---")
 
 # Mode-specific content
 if mode == "article_assignment":
     # Article Assignment Mode
-    st.markdown("### Article Analysis Assignment")
+    st.markdown("### 📄 Article Analysis Assignment")
     st.markdown("Analyze research articles using statistical methods from the course.")
-    st.markdown("---")
+    st.markdown("")
     
     # Article recommendation section
-    with st.expander("Get Article Recommendations", expanded=not st.session_state.current_article):
-        topic_filter = st.text_input("Filter by topic (optional)", placeholder="e.g., vaccines, epidemiology")
+    with st.expander("📚 Get Article Recommendations", expanded=not st.session_state.current_article):
+        topic_filter = st.text_input("Filter by topic (optional)", placeholder="e.g., vaccines, epidemiology", key="topic_filter")
         
         articles = recommend_articles(topic=topic_filter if topic_filter else None)
         
         for i, article in enumerate(articles):
-            st.markdown(f"**{article['title']}**")
-            st.markdown(f"*Source: {article['source']}*")
-            st.markdown(article['why'])
-            
-            col_a, col_b = st.columns([1, 1])
-            with col_a:
-                if article.get('url'):
-                    st.link_button("Open Article", article['url'])
-            with col_b:
-                if st.button("Analyze This Article", key=f"analyze_{i}"):
-                    st.session_state.current_article = article['title']
-                    st.session_state.assignment_questions = generate_assignment_questions(article['title'])
-                    st.rerun()
-            
-            st.markdown("---")
+            with st.container():
+                st.markdown(f"**{article['title']}**")
+                st.markdown(f"*Source: {article['source']}*")
+                st.markdown(article['why'])
+                
+                col_a, col_b = st.columns([1, 1])
+                with col_a:
+                    if article.get('url'):
+                        st.link_button("🔗 Open Article", article['url'])
+                with col_b:
+                    if st.button("📊 Analyze This Article", key=f"analyze_{i}", use_container_width=True):
+                        st.session_state.current_article = article['title']
+                        st.session_state.assignment_questions = generate_assignment_questions(article['title'])
+                        st.rerun()
+                
+                if i < len(articles) - 1:
+                    st.markdown("---")
         
         st.markdown("**Or upload your own article:**")
-        uploaded_file = st.file_uploader("Upload PDF", type=['pdf'])
+        uploaded_file = st.file_uploader("Upload PDF", type=['pdf'], label_visibility="collapsed")
         if uploaded_file:
-            st.info("Article uploaded! Use the questions below to analyze it.")
+            st.info("✓ Article uploaded! Use the questions below to analyze it.")
     
     # Assignment questions
     if st.session_state.current_article:
         st.markdown("---")
-        st.markdown(f"### Analyzing: {st.session_state.current_article}")
+        st.markdown(f"### 📊 Analyzing: {st.session_state.current_article}")
+        st.markdown("")
         
         if not st.session_state.assignment_questions:
             st.session_state.assignment_questions = generate_assignment_questions(st.session_state.current_article)
@@ -585,32 +823,38 @@ if mode == "article_assignment":
         st.markdown("")
         
         for i, q in enumerate(st.session_state.assignment_questions, 1):
-            st.markdown(f"**Question {i}:** {q.get('question', '')}")
-            st.markdown(f"*Focus: {q.get('focus', '')}*")
-            st.markdown(f"*Hint: {q.get('hint', '')}*")
-            
-            user_input = st.text_area(
-                f"Your answer",
-                key=f"q_{i}_input",
-                height=100,
-                placeholder="Type your answer here..."
-            )
-            
-            if st.button(f"Get Feedback", key=f"feedback_{i}"):
-                if user_input:
-                    feedback_prompt = f"Question: {q['question']}\n\nStudent's answer: {user_input}\n\nProvide constructive feedback on their answer."
-                    with st.spinner("Analyzing..."):
-                        feedback = answer_question(feedback_prompt, mode="article_assignment", student_level=st.session_state.student_level)
-                        st.session_state.messages.append({"role": "user", "content": f"Question {i}: {user_input}"})
-                        st.session_state.messages.append({"role": "assistant", "content": feedback})
-                        st.markdown("**Feedback:**")
-                        st.markdown(feedback)
-            
-            st.markdown("---")
+            with st.container():
+                st.markdown(f"**Question {i}:** {q.get('question', '')}")
+                st.markdown(f"*Focus: {q.get('focus', '')}* | *Hint: {q.get('hint', '')}*")
+                st.markdown("")
+                
+                user_input = st.text_area(
+                    f"Your answer",
+                    key=f"q_{i}_input",
+                    height=120,
+                    placeholder="Type your answer here...",
+                    label_visibility="collapsed"
+                )
+                
+                col1, col2 = st.columns([1, 4])
+                with col1:
+                    if st.button(f"Get Feedback", key=f"feedback_{i}", use_container_width=True):
+                        if user_input:
+                            feedback_prompt = f"Question: {q['question']}\n\nStudent's answer: {user_input}\n\nProvide constructive feedback on their answer."
+                            with st.spinner("Analyzing..."):
+                                feedback = answer_question(feedback_prompt, mode="article_assignment", student_level=st.session_state.student_level)
+                                st.session_state.messages.append({"role": "user", "content": f"Question {i}: {user_input}"})
+                                st.session_state.messages.append({"role": "assistant", "content": feedback})
+                                st.markdown("**Feedback:**")
+                                st.markdown(feedback)
+                
+                if i < len(st.session_state.assignment_questions):
+                    st.markdown("---")
     
     # General chat for article analysis
     st.markdown("---")
-    st.markdown("### Ask Questions About the Article")
+    st.markdown("### 💬 Ask Questions About the Article")
+    st.markdown("")
     
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
@@ -632,12 +876,12 @@ else:
     # Conversation or Practice Mode
     mode_descriptions = {
         "conversation": {
-            "title": "Ask Questions",
+            "title": "💬 Ask Questions",
             "description": "Get help understanding statistical concepts from your course materials",
             "placeholder": "Ask a question about statistical concepts..."
         },
         "practice": {
-            "title": "Practice Problems",
+            "title": "📝 Practice Problems",
             "description": "Test your understanding with guided practice questions",
             "placeholder": "Ask for a practice question or share your answer..."
         }
@@ -675,4 +919,4 @@ else:
 
 # Footer
 st.markdown("---")
-st.caption("Tip: Use Article Analysis mode to practice analyzing research papers using course concepts")
+st.caption("💡 Tip: Use Article Analysis mode to practice analyzing research papers using course concepts")
