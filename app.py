@@ -1,5 +1,5 @@
 """
-AI Tutor Agent for PHP 1510/2510 - Principles of Biostatistics and Data Analysis
+Isabelle - AI Tutor for PHP 1510/2510 - Principles of Biostatistics and Data Analysis
 
 Features:
 - Conversation: Ask questions about statistical concepts
@@ -253,7 +253,7 @@ def build_prompt(query, contexts, mode="conversation", student_level="intermedia
                                 for ctx in contexts[:5]])
     
     if mode == "conversation":
-        system_prompt = """You are a helpful statistics tutor for PHP 1510/2510. Help students understand statistical concepts clearly and in terms they can understand.
+        system_prompt = """You are Isabelle, a helpful statistics tutor for PHP 1510/2510. Help students understand statistical concepts clearly and in terms they can understand.
 
 Guidelines:
 - Explain concepts clearly with examples from course materials
@@ -277,7 +277,7 @@ Student question: {query}
 Provide a helpful, clear explanation."""
         
     elif mode == "practice":
-        system_prompt = """You are a practice assistant for PHP 1510/2510. Help students practice through guided questions.
+        system_prompt = """You are Isabelle, a practice assistant for PHP 1510/2510. Help students practice through guided questions.
 
 Guidelines:
 - Ask thoughtful questions that assess conceptual understanding
@@ -297,7 +297,7 @@ Student question or response: {query}
 Engage the student with a practice question or provide feedback."""
         
     elif mode == "article_assignment":
-        system_prompt = """You are an article analysis tutor for PHP 1510/2510. Help students analyze research articles using statistical methods from the course.
+        system_prompt = """You are Isabelle, an article analysis tutor for PHP 1510/2510. Help students analyze research articles using statistical methods from the course.
 
 Guidelines:
 - Help students identify statistical methods used in articles
@@ -335,7 +335,7 @@ def answer_question(query, mode="conversation", student_level="intermediate", so
     prompt = build_prompt(query, contexts, mode, student_level)
     
     messages = [
-        {"role": "system", "content": "You are a helpful statistics tutor assistant."},
+        {"role": "system", "content": "You are Isabelle, a helpful statistics tutor assistant."},
     ]
     
     for msg in st.session_state.messages[-8:]:
@@ -360,7 +360,7 @@ def export_chat_to_pdf(messages):
         
         y = height - 50
         pdf.setFont("Helvetica-Bold", 16)
-        pdf.drawString(50, y, "AI Tutor Chat History")
+        pdf.drawString(50, y, "Isabelle Chat History")
         y -= 30
         
         pdf.setFont("Helvetica", 10)
@@ -377,7 +377,7 @@ def export_chat_to_pdf(messages):
                 pdf.drawString(50, y, "You:")
             else:
                 pdf.setFillColorRGB(0, 0.6, 0)
-                pdf.drawString(50, y, "Tutor:")
+                pdf.drawString(50, y, "Isabelle:")
             
             y -= 15
             pdf.setFillColorRGB(0, 0, 0)
@@ -408,7 +408,7 @@ def export_chat_to_pdf(messages):
         buffer.seek(0)
         return buffer, "application/pdf"
     else:
-        text_content = f"AI Tutor Chat History\n"
+        text_content = f"Isabelle Chat History\n"
         text_content += f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
         text_content += "=" * 50 + "\n\n"
         
@@ -419,7 +419,7 @@ def export_chat_to_pdf(messages):
             if role == "user":
                 text_content += "You:\n"
             else:
-                text_content += "Tutor:\n"
+                text_content += "Isabelle:\n"
             
             text_content += f"{content}\n\n"
             text_content += "-" * 50 + "\n\n"
@@ -429,7 +429,7 @@ def export_chat_to_pdf(messages):
 
 # --- Streamlit UI ---
 st.set_page_config(
-    page_title="AI Tutor - PHP 1510/2510",
+    page_title="Isabelle - PHP 1510/2510",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -455,7 +455,7 @@ st.markdown("""
 
 # Sidebar - Simple and clean
 with st.sidebar:
-    st.markdown("## AI Tutor")
+    st.markdown("## Isabelle")
     st.markdown("PHP 1510/2510")
     st.markdown("---")
     
@@ -527,7 +527,7 @@ with st.sidebar:
         st.rerun()
 
 # Main content - Simple header
-st.markdown("## AI Tutor Agent")
+st.markdown("## Isabelle")
 st.markdown("PHP 1510/2510 - Principles of Biostatistics and Data Analysis")
 st.markdown("---")
 
