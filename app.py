@@ -2,9 +2,7 @@
 Isabelle - AI Tutor for PHP 1510/2510 - Principles of Biostatistics and Data Analysis
 
 Features:
-- Conversation: Ask questions about statistical concepts
-- Practice: Guided practice questions
-- Article Assignment: Analyze research articles using course methods
+- Article Analysis: Analyze research articles using course methods
 - Article Recommendations: Get suggested articles to analyze
 """
 
@@ -37,14 +35,12 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # --- Initialize session state ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
-if "chat_mode" not in st.session_state:
-    st.session_state.chat_mode = "conversation"
-if "student_level" not in st.session_state:
-    st.session_state.student_level = "intermediate"
 if "current_article" not in st.session_state:
     st.session_state.current_article = None
 if "assignment_questions" not in st.session_state:
     st.session_state.assignment_questions = []
+if "welcome_shown" not in st.session_state:
+    st.session_state.welcome_shown = False
 
 # --- Load embedding model ---
 @st.cache_resource
@@ -143,6 +139,15 @@ def retrieve_context(query, top_k=5, source_filter=None):
     except Exception as e:
         return []
 
+# --- Helper: generate BruKnow search URL ---
+def get_bruknow_search_url(search_query):
+    """Generate a BruKnow library search URL with the given query."""
+    base_url = "https://bruknow.library.brown.edu/discovery/search"
+    # URL encode the search query
+    from urllib.parse import quote_plus
+    encoded_query = quote_plus(search_query)
+    return f"{base_url}?query=any,contains,{encoded_query}&tab=Everything&search_scope=MyInstitution&vid=01BU_INST:BROWN&offset=0"
+
 # --- Helper: recommend articles ---
 def recommend_articles(topic=None, public_health_focus=True):
     """Recommend research articles for students to analyze."""
@@ -152,6 +157,7 @@ def recommend_articles(topic=None, public_health_focus=True):
             "source": "Nature Public Health",
             "keywords": ["vaccines", "effectiveness", "public health"],
             "url": "https://www.nature.com/subjects/public-health",
+            "bruknow_url": get_bruknow_search_url("vaccines effectiveness public health statistics"),
             "why": "Great for analyzing confidence intervals, hypothesis testing, and statistical significance in vaccine research"
         },
         {
@@ -159,6 +165,8 @@ def recommend_articles(topic=None, public_health_focus=True):
             "source": "BruKnow Library",
             "keywords": ["epidemiology", "outbreaks", "statistical modeling"],
             "search": "biostatistics public health epidemiology",
+            "url": get_bruknow_search_url("biostatistics public health epidemiology"),
+            "bruknow_url": get_bruknow_search_url("biostatistics public health epidemiology"),
             "why": "Excellent for applying regression analysis, sampling distributions, and resampling methods"
         },
         {
@@ -166,6 +174,7 @@ def recommend_articles(topic=None, public_health_focus=True):
             "source": "Nature Medicine",
             "keywords": ["clinical trials", "RCT", "statistical analysis"],
             "url": "https://www.nature.com/subjects/clinical-trials",
+            "bruknow_url": get_bruknow_search_url("clinical trials randomized controlled trial statistics"),
             "why": "Perfect for understanding p-values, hypothesis testing, and interpreting statistical results"
         },
         {
@@ -173,7 +182,25 @@ def recommend_articles(topic=None, public_health_focus=True):
             "source": "BruKnow Library",
             "keywords": ["interventions", "public health", "evaluation"],
             "search": "public health interventions statistical evaluation",
+            "url": get_bruknow_search_url("public health interventions statistical evaluation"),
+            "bruknow_url": get_bruknow_search_url("public health interventions statistical evaluation"),
             "why": "Ideal for applying course concepts to real-world public health problems"
+        },
+        {
+            "title": "Biostatistics Research Articles",
+            "source": "BruKnow Library",
+            "keywords": ["biostatistics", "public health", "statistical methods"],
+            "url": get_bruknow_search_url("biostatistics public health"),
+            "bruknow_url": get_bruknow_search_url("biostatistics public health"),
+            "why": "Find articles covering various statistical methods used in public health research"
+        },
+        {
+            "title": "Nature Public Health Articles",
+            "source": "Nature & BruKnow",
+            "keywords": ["nature", "public health", "research"],
+            "url": "https://www.nature.com/subjects/public-health",
+            "bruknow_url": get_bruknow_search_url("nature public health"),
+            "why": "Access Nature journal articles through BruKnow on public health topics"
         }
     ]
     
@@ -191,12 +218,12 @@ def generate_assignment_questions(article_title, article_content=None):
     base_questions = [
         {
             "question": "What statistical methods are used in this study?",
-            "focus": "Identifying methods",
+            "focus": "Statistical Methods",
             "hint": "Look for mentions of tests, confidence intervals, p-values, regression, etc."
         },
         {
             "question": "What is the study design? (e.g., randomized controlled trial, observational study, etc.)",
-            "focus": "Study design",
+            "focus": "Study Design",
             "hint": "Consider how participants were selected and assigned to groups"
         },
         {
@@ -206,98 +233,49 @@ def generate_assignment_questions(article_title, article_content=None):
         },
         {
             "question": "What are the limitations of the statistical analysis?",
-            "focus": "Critical thinking",
+            "focus": "Limitations",
             "hint": "Consider sample size, assumptions, potential biases, etc."
         },
         {
             "question": "How do the statistical methods used relate to concepts from our course?",
-            "focus": "Course connection",
+            "focus": "Course Connection",
             "hint": "Connect to lecture materials, textbook concepts, and class discussions"
+        },
+        {
+            "question": "How would you explain the methods used to colleagues that don't have any statistics background?",
+            "focus": "Communication",
+            "hint": "Think about how to translate technical statistical concepts into plain language"
+        },
+        {
+            "question": "What's a 1-2 sentence summary of the main findings? Be as clear/concise as possible while still maintaining technical accuracy.",
+            "focus": "Summary",
+            "hint": "Focus on the key statistical findings and their practical significance"
+        },
+        {
+            "question": "If you had this data, would there be another analysis you'd perform to gain more insights? Explain it without technical jargon.",
+            "focus": "Critical Thinking",
+            "hint": "Consider what additional questions could be answered or what alternative approaches might be valuable"
+        },
+        {
+            "question": "Would you recommend the authors communicate their findings differently? What changes would improve clarity?",
+            "focus": "Communication",
+            "hint": "Think about how statistical results are presented and whether they could be more accessible"
+        },
+        {
+            "question": "Pick a specific piece of output (like a p-value or summary statistic). Interpret it.",
+            "focus": "Interpretation",
+            "hint": "Choose a specific statistical result from the article and explain what it means in practical terms"
         }
     ]
-    
-    if article_content:
-        # Customize questions based on article content
-        prompt = f"""Based on this research article about {article_title}, generate 3-5 specific questions that help students analyze the statistical methods used.
-
-Article excerpt:
-{article_content[:1000]}
-
-Generate questions that:
-1. Ask students to identify specific statistical methods used
-2. Evaluate the appropriateness of methods
-3. Interpret results using course concepts
-4. Critique the statistical approach
-5. Connect to public health applications
-
-Format as a JSON list of questions with 'question', 'focus', and 'hint' fields."""
-
-        try:
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.7,
-            )
-            # Parse and return custom questions
-            import json
-            custom_questions = json.loads(response.choices[0].message.content)
-            return custom_questions if isinstance(custom_questions, list) else base_questions
-        except:
-            return base_questions
     
     return base_questions
 
 # --- Helper: build prompt ---
-def build_prompt(query, contexts, mode="conversation", student_level="intermediate"):
+def build_prompt(query, contexts):
     context_text = "\n\n".join([f"[Source: {ctx['metadata'].get('source', 'unknown')}]\n{ctx['text']}" 
                                 for ctx in contexts[:5]])
     
-    if mode == "conversation":
-        system_prompt = """You are Isabelle, a helpful statistics tutor for PHP 1510/2510. Help students understand statistical concepts clearly and in terms they can understand.
-
-Guidelines:
-- Explain concepts clearly with examples from course materials
-- If a student seems confused, ask "What would you like more clarification on?"
-- Match Professor Lipman's teaching style from lecture materials
-- Focus on conceptual understanding, not just formulas
-- Connect concepts to public health applications
-"""
-        if student_level == "beginner":
-            system_prompt += "\n- Use simpler language and provide more examples\n- Break down complex concepts"
-        elif student_level == "advanced":
-            system_prompt += "\n- Discuss advanced applications and nuances\n- Encourage deeper thinking"
-        
-        prompt = f"""{system_prompt}
-
-Context from course materials:
-{context_text}
-
-Student question: {query}
-
-Provide a helpful, clear explanation."""
-        
-    elif mode == "practice":
-        system_prompt = """You are Isabelle, a practice assistant for PHP 1510/2510. Help students practice through guided questions.
-
-Guidelines:
-- Ask thoughtful questions that assess conceptual understanding
-- Use question patterns similar to homework and quiz questions
-- Provide hints if the student struggles
-- Focus on statistical reasoning, not just answers
-- After they answer, provide gentle feedback
-"""
-        
-        prompt = f"""{system_prompt}
-
-Context from assessments and course materials:
-{context_text}
-
-Student question or response: {query}
-
-Engage the student with a practice question or provide feedback."""
-        
-    elif mode == "article_assignment":
-        system_prompt = """You are Isabelle, an article analysis tutor for PHP 1510/2510. Help students analyze research articles using statistical methods from the course.
+    system_prompt = """You are Isabelle, an article analysis tutor for PHP 1510/2510. Help students analyze research articles using statistical methods from the course.
 
 Guidelines:
 - Help students identify statistical methods used in articles
@@ -306,33 +284,33 @@ Guidelines:
 - Help students critique statistical analyses
 - Focus on public health applications
 - Be encouraging but push for deeper thinking
+- At the end of your response, if the student needs further clarification, suggest they ask on EdStem (https://edstem.org/us/courses/80840/discussion) or speak to Professor Lipman
 """
-        
-        prompt = f"""{system_prompt}
+    
+    prompt = f"""{system_prompt}
 
 Context from course materials (textbook, lectures, examples):
 {context_text}
 
 Student is analyzing an article. Their question or response: {query}
 
-Help them analyze the article using concepts from the course. Guide them to think critically about the statistical methods."""
-    
-    else:
-        prompt = f"Context:\n{context_text}\n\nQuestion: {query}\n\nAnswer based on the context."
+Help them analyze the article using concepts from the course. Guide them to think critically about the statistical methods. If they need further clarification beyond what you can provide, remind them to ask on EdStem or speak to Professor Lipman."""
     
     return prompt
 
 # --- Helper: answer question ---
-def answer_question(query, mode="conversation", student_level="intermediate", source_filter=None):
+def answer_question(query):
     if texts is None or embs is None:
         return "Please run the ingestion script first to create the index."
     
-    contexts = retrieve_context(query, top_k=5, source_filter=source_filter)
+    # Always use all sources - no filtering
+    contexts = retrieve_context(query, top_k=5, source_filter=None)
     
     if not contexts:
-        return "I couldn't find relevant information. Please try rephrasing your question."
+        edstem_note = "\n\n💡 **Need more help?** If you need further clarification, please ask on [EdStem](https://edstem.org/us/courses/80840/discussion) or speak to Professor Lipman."
+        return "I couldn't find relevant information. Please try rephrasing your question." + edstem_note
     
-    prompt = build_prompt(query, contexts, mode, student_level)
+    prompt = build_prompt(query, contexts)
     
     messages = [
         {"role": "system", "content": "You are Isabelle, a helpful statistics tutor assistant."},
@@ -349,10 +327,17 @@ def answer_question(query, mode="conversation", student_level="intermediate", so
         temperature=0.7,
         max_tokens=500,
     )
-    return response.choices[0].message.content
+    
+    answer = response.choices[0].message.content
+    
+    # Add EdStem guidance if not already present
+    if "edstem" not in answer.lower() and "professor lipman" not in answer.lower():
+        answer += "\n\n💡 **Need more help?** If you need further clarification, please ask on [EdStem](https://edstem.org/us/courses/80840/discussion) or speak to Professor Lipman."
+    
+    return answer
 
 # --- Helper: export chat ---
-def export_chat_to_pdf(messages):
+def export_chat_to_pdf(messages, for_professor=False):
     if REPORTLAB_AVAILABLE:
         buffer = io.BytesIO()
         pdf = canvas.Canvas(buffer, pagesize=letter)
@@ -360,12 +345,20 @@ def export_chat_to_pdf(messages):
         
         y = height - 50
         pdf.setFont("Helvetica-Bold", 16)
-        pdf.drawString(50, y, "Isabelle Chat History")
+        if for_professor:
+            pdf.drawString(50, y, "Isabelle Chat History - For Professor Lipman")
+        else:
+            pdf.drawString(50, y, "Isabelle Chat History")
         y -= 30
         
         pdf.setFont("Helvetica", 10)
         pdf.drawString(50, y, f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        y -= 40
+        if for_professor:
+            y -= 20
+            pdf.drawString(50, y, "Course: PHP 1510/2510 - Principles of Biostatistics")
+            y -= 20
+            pdf.drawString(50, y, "This chat export is intended for Professor Lipman")
+        y -= 20
         
         pdf.setFont("Helvetica", 10)
         for msg in messages:
@@ -408,7 +401,12 @@ def export_chat_to_pdf(messages):
         buffer.seek(0)
         return buffer, "application/pdf"
     else:
-        text_content = f"Isabelle Chat History\n"
+        if for_professor:
+            text_content = f"Isabelle Chat History - For Professor Lipman\n"
+            text_content += f"Course: PHP 1510/2510 - Principles of Biostatistics\n"
+            text_content += f"This chat export is intended for Professor Lipman\n"
+        else:
+            text_content = f"Isabelle Chat History\n"
         text_content += f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
         text_content += "=" * 50 + "\n\n"
         
@@ -676,247 +674,195 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Sidebar - Professional layout
+# Sidebar - Simplified layout
 with st.sidebar:
     st.markdown("### Isabelle")
-    st.markdown("**PHP 1510/2510**")
-    st.markdown("*Principles of Biostatistics*")
+    st.markdown("*PHP 1510/2510 - Biostatistics*")
     st.markdown("---")
     
-    # Mode selection
-    st.markdown("**Mode**")
-    mode = st.radio(
-        "Choose mode",
-        ["conversation", "practice", "article_assignment"],
-        format_func=lambda x: {
-            "conversation": "💬 Ask Questions",
-            "practice": "📝 Practice Problems",
-            "article_assignment": "📄 Article Analysis"
-        }[x],
-        index=["conversation", "practice", "article_assignment"].index(st.session_state.chat_mode),
-        label_visibility="collapsed"
-    )
-    st.session_state.chat_mode = mode
+    # Quick Links
+    st.markdown("**Quick Links**")
+    st.markdown("[📚 BruKnow](https://bruknow.library.brown.edu/discovery/search?vid=01BU_INST:BROWN) | [💬 EdStem](https://edstem.org/us/courses/80840/discussion)")
     
     st.markdown("---")
     
-    # Student level
-    st.markdown("**Difficulty Level**")
-    level = st.selectbox(
-        "Select level",
-        ["beginner", "intermediate", "advanced"],
-        format_func=lambda x: {
-            "beginner": "Beginner",
-            "intermediate": "Intermediate",
-            "advanced": "Advanced"
-        }[x],
-        index=["beginner", "intermediate", "advanced"].index(st.session_state.student_level),
-        label_visibility="collapsed"
-    )
-    st.session_state.student_level = level
-    
-    st.markdown("---")
-    
-    # Source filter
-    st.markdown("**Source Filter**")
-    source_options = ["All", "textbook", "docs", "assessments", "data", "articles"]
-    selected_source = st.selectbox(
-        "Filter by source",
-        source_options,
-        label_visibility="collapsed"
-    )
-    source_filter = None if selected_source == "All" else selected_source
-    
-    st.markdown("---")
-    
-    # Actions
-    st.markdown("**Actions**")
-    
-    # Export
+    # Actions - Simplified
     if st.session_state.messages:
-        if st.button("📥 Export Chat", use_container_width=True):
-            export_buffer, mime_type = export_chat_to_pdf(st.session_state.messages)
-            file_ext = ".pdf" if mime_type == "application/pdf" else ".txt"
-            file_name = f"chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}{file_ext}"
-            label = "Download PDF" if mime_type == "application/pdf" else "Download Text"
-            
-            if not REPORTLAB_AVAILABLE:
-                st.info("💡 Install 'reportlab' for PDF export")
-            
-            st.download_button(
-                label=label,
-                data=export_buffer,
-                file_name=file_name,
-                mime=mime_type,
-                use_container_width=True
-            )
-    
-    # Clear chat
-    if st.button("🗑️ Clear Chat", use_container_width=True):
-        st.session_state.messages = []
-        st.session_state.current_article = None
-        st.session_state.assignment_questions = []
-        st.rerun()
+        st.markdown("**Chat Actions**")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("📥 Export", use_container_width=True):
+                export_buffer, mime_type = export_chat_to_pdf(st.session_state.messages, for_professor=False)
+                file_ext = ".pdf" if mime_type == "application/pdf" else ".txt"
+                file_name = f"chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}{file_ext}"
+                st.download_button(
+                    label="Download",
+                    data=export_buffer,
+                    file_name=file_name,
+                    mime=mime_type,
+                    use_container_width=True
+                )
+        with col2:
+            if st.button("🗑️ Clear", use_container_width=True):
+                st.session_state.messages = []
+                st.session_state.current_article = None
+                st.session_state.assignment_questions = []
+                st.rerun()
 
-# Main content - Professional header
-col1, col2 = st.columns([3, 1])
-with col1:
-    st.markdown("## Isabelle")
-    st.markdown("**PHP 1510/2510 - Principles of Biostatistics and Data Analysis**")
-with col2:
+# Main content - Welcome and Header
+if not st.session_state.current_article and not st.session_state.messages:
+    # Welcome screen
+    st.markdown("# 👋 Welcome to Isabelle")
+    st.markdown("### Your AI Tutor for PHP 1510/2510 - Principles of Biostatistics")
+    st.markdown("---")
+    
+    st.markdown("""
+    **Isabelle** is your intelligent learning assistant designed to help you analyze research articles using statistical methods from your course.
+    
+    ### What Isabelle can do:
+    
+    📊 **Article Analysis** - Get guided questions to analyze research articles and apply course concepts
+    
+    💬 **Ask Questions** - Get help understanding statistical methods, study designs, and data interpretation
+    
+    📚 **Course Materials** - Access insights from your textbook, lecture slides, and assessments
+    
+    🔍 **Find Articles** - Get recommendations for articles from BruKnow and Nature on topics like vaccines, public health, and epidemiology
+    
+    ### How to get started:
+    
+    1. **Browse article recommendations** below or upload your own PDF
+    2. **Click "Analyze"** on any article to see the 10 analysis questions
+    3. **Answer questions** and get feedback on your responses
+    4. **Ask questions** in the chat to dive deeper into concepts
+    
+    ---
+    """)
+    
     # Status indicator
+    if texts is not None and embs is not None and len(texts) > 0 and embs.size > 0:
+        st.success("✓ Ready - Course materials loaded")
+    else:
+        st.warning("⚠ Index not found - Some features may be limited")
+    
+    st.markdown("---")
+else:
+    # Regular header when working
+    st.markdown("## Isabelle - Article Analysis")
+    st.caption("PHP 1510/2510 - Principles of Biostatistics")
+    
+    # Status indicator (compact)
     if texts is not None and embs is not None and len(texts) > 0 and embs.size > 0:
         st.success("✓ Ready")
     else:
         st.error("⚠ Index not found")
-
-st.markdown("---")
-
-# Mode-specific content
-if mode == "article_assignment":
-    # Article Assignment Mode
-    st.markdown("### 📄 Article Analysis Assignment")
-    st.markdown("Analyze research articles using statistical methods from the course.")
-    st.markdown("")
     
-    # Article recommendation section
-    with st.expander("📚 Get Article Recommendations", expanded=not st.session_state.current_article):
-        topic_filter = st.text_input("Filter by topic (optional)", placeholder="e.g., vaccines, epidemiology", key="topic_filter")
-        
-        articles = recommend_articles(topic=topic_filter if topic_filter else None)
-        
-        for i, article in enumerate(articles):
-            with st.container():
-                st.markdown(f"**{article['title']}**")
-                st.markdown(f"*Source: {article['source']}*")
-                st.markdown(article['why'])
-                
-                col_a, col_b = st.columns([1, 1])
-                with col_a:
-                    if article.get('url'):
-                        st.link_button("🔗 Open Article", article['url'])
-                with col_b:
-                    if st.button("📊 Analyze This Article", key=f"analyze_{i}", use_container_width=True):
-                        st.session_state.current_article = article['title']
-                        st.session_state.assignment_questions = generate_assignment_questions(article['title'])
-                        st.rerun()
-                
-                if i < len(articles) - 1:
-                    st.markdown("---")
-        
-        st.markdown("**Or upload your own article:**")
-        uploaded_file = st.file_uploader("Upload PDF", type=['pdf'], label_visibility="collapsed")
-        if uploaded_file:
-            st.info("✓ Article uploaded! Use the questions below to analyze it.")
-    
-    # Assignment questions
-    if st.session_state.current_article:
-        st.markdown("---")
-        st.markdown(f"### 📊 Analyzing: {st.session_state.current_article}")
-        st.markdown("")
-        
-        if not st.session_state.assignment_questions:
-            st.session_state.assignment_questions = generate_assignment_questions(st.session_state.current_article)
-        
-        st.markdown("**Assignment Questions**")
-        st.markdown("Answer these questions about the statistical methods used in the article:")
-        st.markdown("")
-        
-        for i, q in enumerate(st.session_state.assignment_questions, 1):
-            with st.container():
-                st.markdown(f"**Question {i}:** {q.get('question', '')}")
-                st.markdown(f"*Focus: {q.get('focus', '')}* | *Hint: {q.get('hint', '')}*")
-                st.markdown("")
-                
-                user_input = st.text_area(
-                    f"Your answer",
-                    key=f"q_{i}_input",
-                    height=120,
-                    placeholder="Type your answer here...",
-                    label_visibility="collapsed"
-                )
-                
-                col1, col2 = st.columns([1, 4])
-                with col1:
-                    if st.button(f"Get Feedback", key=f"feedback_{i}", use_container_width=True):
-                        if user_input:
-                            feedback_prompt = f"Question: {q['question']}\n\nStudent's answer: {user_input}\n\nProvide constructive feedback on their answer."
-                            with st.spinner("Analyzing..."):
-                                feedback = answer_question(feedback_prompt, mode="article_assignment", student_level=st.session_state.student_level)
-                                st.session_state.messages.append({"role": "user", "content": f"Question {i}: {user_input}"})
-                                st.session_state.messages.append({"role": "assistant", "content": feedback})
-                                st.markdown("**Feedback:**")
-                                st.markdown(feedback)
-                
-                if i < len(st.session_state.assignment_questions):
-                    st.markdown("---")
-    
-    # General chat for article analysis
     st.markdown("---")
-    st.markdown("### 💬 Ask Questions About the Article")
+
+# Article recommendation section - Clean and Simple
+if not st.session_state.current_article:
+    st.markdown("### 📚 Find Articles to Analyze")
     st.markdown("")
     
+    # Simple search
+    topic_filter = st.text_input("🔍 Search by topic (optional)", placeholder="e.g., vaccines, epidemiology, public health", key="topic_filter")
+    st.markdown("")
+    
+    articles = recommend_articles(topic=topic_filter if topic_filter else None)
+    
+    # Show articles in a cleaner format
+    articles_to_show = articles[:4] if len(articles) > 4 else articles
+    
+    if articles_to_show:
+        for i, article in enumerate(articles_to_show):
+            # Article card with cleaner layout
+            col1, col2 = st.columns([4, 1])
+            with col1:
+                st.markdown(f"**{article['title']}**")
+                st.caption(f"📖 {article['source']}")
+                st.markdown(f"*{article['why']}*")
+                
+                # Links inline
+                links = []
+                if article.get('bruknow_url'):
+                    links.append(f"[📚 BruKnow]({article['bruknow_url']})")
+                if article.get('url') and 'bruknow' not in article.get('url', '').lower():
+                    links.append(f"[🔗 Source]({article['url']})")
+                if links:
+                    st.markdown(" | ".join(links), unsafe_allow_html=True)
+            
+            with col2:
+                if st.button("📊 Analyze", key=f"analyze_{i}", use_container_width=True, type="primary"):
+                    st.session_state.current_article = article['title']
+                    st.session_state.assignment_questions = generate_assignment_questions(article['title'])
+                    st.rerun()
+            
+            if i < len(articles_to_show) - 1:
+                st.markdown("---")
+    
+    st.markdown("---")
+    st.markdown("**Or upload your own article:**")
+    uploaded_file = st.file_uploader("", type=['pdf'], label_visibility="collapsed")
+    if uploaded_file:
+        st.session_state.current_article = uploaded_file.name
+        st.session_state.assignment_questions = generate_assignment_questions(uploaded_file.name)
+        st.rerun()
+
+# Assignment questions - Simplified
+if st.session_state.current_article:
+    st.markdown(f"### 📊 Analyzing: {st.session_state.current_article}")
+    st.markdown("")
+    
+    if not st.session_state.assignment_questions:
+        st.session_state.assignment_questions = generate_assignment_questions(st.session_state.current_article)
+    
+    st.markdown("**Answer these questions about the article:**")
+    st.markdown("")
+    
+    for i, q in enumerate(st.session_state.assignment_questions, 1):
+        with st.expander(f"**Question {i}:** {q.get('question', '')}", expanded=False):
+            st.caption(f"💡 Focus: {q.get('focus', '')} | 💭 Hint: {q.get('hint', '')}")
+            st.markdown("")
+            user_input = st.text_area(
+                "Your answer:",
+                key=f"q_{i}_input",
+                height=100,
+                placeholder="Type your answer here...",
+                label_visibility="visible"
+            )
+            if st.button(f"Get Feedback", key=f"feedback_{i}", use_container_width=True, type="primary"):
+                if user_input:
+                    feedback_prompt = f"Question: {q['question']}\n\nStudent's answer: {user_input}\n\nProvide constructive feedback on their answer."
+                    with st.spinner("Analyzing your answer..."):
+                        feedback = answer_question(feedback_prompt)
+                        st.session_state.messages.append({"role": "user", "content": f"Question {i}: {user_input}"})
+                        st.session_state.messages.append({"role": "assistant", "content": feedback})
+                        st.markdown("**📝 Feedback:**")
+                        st.markdown(feedback)
+                else:
+                    st.info("Please enter an answer before requesting feedback.")
+            
+# General chat - Clean and Simple
+if st.session_state.current_article or st.session_state.messages:
+    st.markdown("---")
+    st.markdown("### 💬 Ask Questions")
+    st.markdown("Ask Isabelle about statistical methods, interpretation, or course concepts.")
+    st.markdown("")
+
+    # Display chat messages
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
-    
+
+    # Chat input
     if prompt := st.chat_input("Ask about statistical methods, interpretation, or course concepts..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
         
         with st.chat_message("assistant"):
-            with st.spinner("Analyzing..."):
-                response = answer_question(prompt, mode="article_assignment", student_level=st.session_state.student_level, source_filter=source_filter)
-                st.markdown(response)
-        
-        st.session_state.messages.append({"role": "assistant", "content": response})
-
-else:
-    # Conversation or Practice Mode
-    mode_descriptions = {
-        "conversation": {
-            "title": "💬 Ask Questions",
-            "description": "Get help understanding statistical concepts from your course materials",
-            "placeholder": "Ask a question about statistical concepts..."
-        },
-        "practice": {
-            "title": "📝 Practice Problems",
-            "description": "Test your understanding with guided practice questions",
-            "placeholder": "Ask for a practice question or share your answer..."
-        }
-    }
-    
-    desc = mode_descriptions.get(mode, mode_descriptions["conversation"])
-    
-    st.markdown(f"### {desc['title']}")
-    st.markdown(desc['description'])
-    st.markdown("")
-    
-    # Chat history
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-    
-    # Chat input
-    if prompt := st.chat_input(desc['placeholder']):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-        
-        with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
-                response_mode = "practice" if mode == "practice" else "conversation"
-                response = answer_question(
-                    prompt,
-                    mode=response_mode,
-                    student_level=st.session_state.student_level,
-                    source_filter=source_filter
-                )
+                response = answer_question(prompt)
                 st.markdown(response)
         
         st.session_state.messages.append({"role": "assistant", "content": response})
-
-# Footer
-st.markdown("---")
-st.caption("💡 Tip: Use Article Analysis mode to practice analyzing research papers using course concepts")
