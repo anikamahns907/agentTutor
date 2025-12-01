@@ -1,13 +1,13 @@
 streamlit
-sentence-transformers
 numpy
 python-dotenv
 openai
-langchain_community
+langchain
+langchain-community
 PyMuPDF
-transformers
-torch
 pandas
 requests
 arxiv
 reportlab
+beautifulsoup4
+tiktoken

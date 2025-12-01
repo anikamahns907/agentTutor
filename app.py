@@ -18,6 +18,18 @@ from openai import OpenAI
 from transformers import AutoModel, AutoTokenizer
 import io
 
+from utils.article_import import (
+    get_bruknow_search_url,
+    prepare_article_documents,
+    search_bruknow_articles,
+    search_public_health_articles,
+)
+from utils.text_extraction import (
+    clean_extracted_text,
+    extract_text_from_pdf,
+    extract_text_from_url,
+)
+
 # Optional PDF export
 try:
     from reportlab.lib.pagesizes import letter  # type: ignore
@@ -41,6 +53,20 @@ if "assignment_questions" not in st.session_state:
     st.session_state.assignment_questions = []
 if "welcome_shown" not in st.session_state:
     st.session_state.welcome_shown = False
+if "session_vectorstore" not in st.session_state:
+    st.session_state.session_vectorstore = {"texts": [], "embs": None, "metadata": []}
+if "current_article_text" not in st.session_state:
+    st.session_state.current_article_text = ""
+if "article_metadata" not in st.session_state:
+    st.session_state.article_metadata = {}
+if "article_source_choice" not in st.session_state:
+    st.session_state.article_source_choice = "Upload PDF"
+if "article_url_input" not in st.session_state:
+    st.session_state.article_url_input = ""
+if "article_text_input" not in st.session_state:
+    st.session_state.article_text_input = ""
+if "pending_article_import" not in st.session_state:
+    st.session_state.pending_article_import = None
 
 # --- Load embedding model ---
 @st.cache_resource
@@ -110,43 +136,88 @@ except Exception:
 
 # --- Helper: retrieve context ---
 def retrieve_context(query, top_k=5, source_filter=None):
-    if texts is None or embs is None:
-        return []
+    """Retrieve context from both permanent index and session vectorstore."""
+    all_contexts = []
     
-    try:
-        q_emb = embed_text(query)
-        if embs.shape[0] == 0:
-            return []
-        
-        sims = np.dot(embs, q_emb)
-        top_indices = np.argsort(sims)[-top_k:][::-1]
-        
-        contexts = []
-        for idx in top_indices:
-            if idx >= len(texts):
-                continue
-            if source_filter and metadata and idx < len(metadata):
-                source_type = metadata[idx].get('source_type', '')
-                if source_filter not in source_type:
+    # Search permanent index
+    if texts is not None and embs is not None and embs.shape[0] > 0:
+        try:
+            q_emb = embed_text(query)
+            sims = np.dot(embs, q_emb)
+            top_indices = np.argsort(sims)[-top_k:][::-1]
+            
+            for idx in top_indices:
+                if idx >= len(texts):
                     continue
-            contexts.append({
-                'text': texts[idx],
-                'score': float(sims[idx]),
-                'metadata': metadata[idx] if metadata and idx < len(metadata) else {}
-            })
-        
-        return contexts
-    except Exception as e:
-        return []
+                if source_filter and metadata and idx < len(metadata):
+                    source_type = metadata[idx].get('source_type', '')
+                    if source_filter not in source_type:
+                        continue
+                all_contexts.append({
+                    'text': texts[idx],
+                    'score': float(sims[idx]),
+                    'metadata': metadata[idx] if metadata and idx < len(metadata) else {}
+                })
+        except Exception as e:
+            pass
+    
+    # Search session vectorstore (uploaded articles)
+    session_store = st.session_state.session_vectorstore
+    if session_store.get("texts") and len(session_store["texts"]) > 0:
+        try:
+            q_emb = embed_text(query)
+            session_embs = session_store.get("embs")
+            if session_embs is not None and session_embs.shape[0] > 0:
+                sims = np.dot(session_embs, q_emb)
+                top_indices = np.argsort(sims)[-top_k:][::-1]
+                
+                for idx in top_indices:
+                    if idx >= len(session_store["texts"]):
+                        continue
+                    if source_filter:
+                        session_meta = session_store.get("metadata", [])
+                        if idx < len(session_meta):
+                            source_type = session_meta[idx].get('source_type', '')
+                            if source_filter not in source_type:
+                                continue
+                    all_contexts.append({
+                        'text': session_store["texts"][idx],
+                        'score': float(sims[idx]),
+                        'metadata': session_store.get("metadata", [])[idx] if idx < len(session_store.get("metadata", [])) else {}
+                    })
+        except Exception as e:
+            pass
+    
+    # Sort all contexts by score and return top_k
+    all_contexts.sort(key=lambda x: x['score'], reverse=True)
+    return all_contexts[:top_k]
 
-# --- Helper: generate BruKnow search URL ---
-def get_bruknow_search_url(search_query):
-    """Generate a BruKnow library search URL with the given query."""
-    base_url = "https://bruknow.library.brown.edu/discovery/search"
-    # URL encode the search query
-    from urllib.parse import quote_plus
-    encoded_query = quote_plus(search_query)
-    return f"{base_url}?query=any,contains,{encoded_query}&tab=Everything&search_scope=MyInstitution&vid=01BU_INST:BROWN&offset=0"
+# --- Helper: add article to session vectorstore ---
+def add_article_to_session(text: str, article_title: str, source_label: str, source_url: str | None = None):
+    """Chunk and embed an article, adding it to the session vectorstore."""
+    chunks, metadata_list = prepare_article_documents(text, article_title, source_label, source_url)
+    
+    if not chunks:
+        return False
+    
+    # Generate embeddings for chunks
+    chunk_embs = []
+    for chunk in chunks:
+        emb = embed_text(chunk)
+        chunk_embs.append(emb)
+    
+    chunk_embs_array = np.array(chunk_embs)
+    
+    # Add to session vectorstore
+    session_store = st.session_state.session_vectorstore
+    session_store["texts"].extend(chunks)
+    if session_store["embs"] is None:
+        session_store["embs"] = chunk_embs_array
+    else:
+        session_store["embs"] = np.vstack([session_store["embs"], chunk_embs_array])
+    session_store["metadata"].extend(metadata_list)
+    
+    return True
 
 # --- Helper: recommend articles ---
 def recommend_articles(topic=None, public_health_focus=True):
@@ -275,15 +346,21 @@ def build_prompt(query, contexts):
     context_text = "\n\n".join([f"[Source: {ctx['metadata'].get('source', 'unknown')}]\n{ctx['text']}" 
                                 for ctx in contexts[:5]])
     
-    system_prompt = """You are Isabelle, an article analysis tutor for PHP 1510/2510. Help students analyze research articles using statistical methods from the course.
+    system_prompt = """You are Isabelle, a communication coach and article analysis tutor for PHP 1510/2510. Your role is to help students practice communicating statistical concepts and research findings more clearly.
+
+Your core job is to be a communication coach, not a judge. You do NOT grade, score, or use rubrics.
 
 Guidelines:
 - Help students identify statistical methods used in articles
 - Guide them to evaluate methods using course concepts
-- Ask probing questions about study design, tests, and interpretation
-- Help students critique statistical analyses
-- Focus on public health applications
-- Be encouraging but push for deeper thinking
+- Ask clarifying follow-up questions that improve clarity
+- Encourage rephrasings and conceptual simplifications
+- Provide definitions and analogies when helpful
+- Offer pacing cues ("Want me to go deeper?" "Should I simplify this?")
+- Help students break down statistical ideas into clearer explanations
+- Guide students through explaining research papers
+- Be conversational and encouraging
+- Push for deeper thinking but stay supportive
 - At the end of your response, if the student needs further clarification, suggest they ask on EdStem (https://edstem.org/us/courses/80840/discussion) or speak to Professor Lipman
 """
     
@@ -426,9 +503,17 @@ def export_chat_to_pdf(messages, for_professor=False):
         return buffer, "text/plain"
 
 # --- Streamlit UI ---
+# Check for logo for page icon
+logo_icon_paths = ["assets/logo.png", "assets/logo.jpg", "logo.png", "logo.jpg"]
+page_icon = "📊"  # Default
+for icon_path in logo_icon_paths:
+    if Path(icon_path).exists():
+        page_icon = icon_path
+        break
+
 st.set_page_config(
     page_title="Isabelle - PHP 1510/2510",
-    page_icon="📊",
+    page_icon=page_icon if isinstance(page_icon, str) and page_icon.endswith(('.png', '.jpg')) else "📊",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -676,7 +761,24 @@ st.markdown("""
 
 # Sidebar - Simplified layout
 with st.sidebar:
-    st.markdown("### Isabelle")
+    # Logo
+    logo_paths = ["assets/logo.png", "assets/logo.jpg", "assets/logo.svg", "logo.png", "logo.jpg", "logo.svg"]
+    logo_found = False
+    for logo_path in logo_paths:
+        if Path(logo_path).exists():
+            import base64
+            logo_bytes = Path(logo_path).read_bytes()
+            logo_b64 = base64.b64encode(logo_bytes).decode()
+            st.markdown(f"""
+            <div style="display: flex; justify-content: center; margin-bottom: 1rem;">
+                <img src="data:image/png;base64,{logo_b64}" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; display: block;" />
+            </div>
+            """, unsafe_allow_html=True)
+            logo_found = True
+            break
+    
+    if not logo_found:
+        st.markdown("### Isabelle")
     st.markdown("*PHP 1510/2510 - Biostatistics*")
     st.markdown("---")
     
@@ -707,6 +809,10 @@ with st.sidebar:
                 st.session_state.messages = []
                 st.session_state.current_article = None
                 st.session_state.assignment_questions = []
+                st.session_state.session_vectorstore = {"texts": [], "embs": None, "metadata": []}
+                st.session_state.current_article_text = ""
+                st.session_state.article_metadata = {}
+                st.session_state.pending_article_import = None
                 st.rerun()
 
 # Main content - Welcome and Header
@@ -759,8 +865,162 @@ else:
     
     st.markdown("---")
 
-# Article recommendation section - Clean and Simple
+# Article import section - NEW
 if not st.session_state.current_article:
+    st.markdown("### 📄 Upload a Research Article")
+    st.markdown("Import any biostatistics/public health research article for analysis.")
+    st.markdown("")
+    
+    # Article source selection
+    article_source = st.radio(
+        "Choose an Article Source:",
+        ["Upload PDF", "Paste URL", "Paste Text", "Search BruKnow", "Search Public Health Articles"],
+        key="article_source_choice",
+        horizontal=False
+    )
+    
+    article_imported = False
+    article_title = ""
+    article_text = ""
+    article_url = None
+    
+    if article_source == "Upload PDF":
+        uploaded_file = st.file_uploader("Upload PDF file", type=['pdf'], key="pdf_uploader")
+        if uploaded_file:
+            if st.button("Extract Text", key="extract_pdf"):
+                with st.spinner("Extracting text from PDF..."):
+                    try:
+                        article_text = extract_text_from_pdf(uploaded_file.read())
+                        article_title = uploaded_file.name
+                        article_imported = True
+                    except Exception as e:
+                        st.error(f"Error extracting text: {e}")
+    
+    elif article_source == "Paste URL":
+        url_input = st.text_input("Paste article URL", placeholder="https://...", key="url_input")
+        if url_input:
+            if st.button("Extract Text", key="extract_url"):
+                with st.spinner("Fetching and extracting text from URL..."):
+                    try:
+                        article_text = extract_text_from_url(url_input)
+                        article_title = url_input.split("/")[-1] or "Article from URL"
+                        article_url = url_input
+                        article_imported = True
+                    except Exception as e:
+                        st.error(f"Error fetching URL: {e}")
+    
+    elif article_source == "Paste Text":
+        text_input = st.text_area("Paste article text", height=200, key="text_input")
+        if text_input:
+            if st.button("Use Text", key="use_text"):
+                article_text = clean_extracted_text(text_input)
+                article_title = "Pasted Article"
+                article_imported = True
+    
+    elif article_source == "Search BruKnow":
+        search_query = st.text_input("Search BruKnow articles", placeholder="e.g., vaccine effectiveness", key="bruknow_search")
+        if search_query:
+            if st.button("Search", key="search_bruknow"):
+                with st.spinner("Searching BruKnow..."):
+                    results = search_bruknow_articles(search_query, max_results=5)
+                    if results:
+                        st.markdown("**Search Results:**")
+                        for idx, result in enumerate(results):
+                            with st.expander(f"{result['title']} - {result['source']}"):
+                                st.markdown(f"**Snippet:** {result.get('snippet', '')[:200]}...")
+                                if result.get('url'):
+                                    st.markdown(f"[🔗 Open Article]({result['url']})")
+                                if result.get('bruknow_url'):
+                                    st.markdown(f"[📚 BruKnow Link]({result['bruknow_url']})")
+                                if st.button(f"Import This Article", key=f"import_bruknow_{idx}"):
+                                    with st.spinner("Importing article..."):
+                                        try:
+                                            article_text = extract_text_from_url(result['url'])
+                                            st.session_state.pending_article_import = {
+                                                "text": article_text,
+                                                "title": result['title'],
+                                                "url": result['url'],
+                                                "source": "BruKnow"
+                                            }
+                                            st.rerun()
+                                        except Exception as e:
+                                            st.error(f"Error importing article: {e}")
+                    else:
+                        st.info("No results found. Try a different search term.")
+    
+    elif article_source == "Search Public Health Articles":
+        search_query = st.text_input("Search public health articles", placeholder="e.g., epidemiology, disease outbreak", key="ph_search")
+        if search_query:
+            if st.button("Search", key="search_ph"):
+                with st.spinner("Searching public health sources..."):
+                    results = search_public_health_articles(search_query, max_results=5)
+                    if results:
+                        st.markdown("**Search Results:**")
+                        for idx, result in enumerate(results):
+                            with st.expander(f"{result['title']} - {result['source']}"):
+                                st.markdown(f"**Snippet:** {result.get('snippet', '')[:200]}...")
+                                if result.get('url'):
+                                    st.markdown(f"[🔗 Open Article]({result['url']})")
+                                if st.button(f"Import This Article", key=f"import_ph_{idx}"):
+                                    with st.spinner("Importing article..."):
+                                        try:
+                                            article_text = extract_text_from_url(result['url'])
+                                            st.session_state.pending_article_import = {
+                                                "text": article_text,
+                                                "title": result['title'],
+                                                "url": result['url'],
+                                                "source": result['source']
+                                            }
+                                            st.rerun()
+                                        except Exception as e:
+                                            st.error(f"Error importing article: {e}")
+                    else:
+                        st.info("No results found. Try a different search term.")
+    
+    # Process pending article import (from search results)
+    if st.session_state.pending_article_import:
+        pending = st.session_state.pending_article_import
+        article_text = pending["text"]
+        article_title = pending["title"]
+        article_url = pending.get("url")
+        source_label = pending.get("source", "Imported Article")
+        
+        if len(article_text.strip()) > 100:  # Minimum text length
+            if add_article_to_session(article_text, article_title, source_label, article_url):
+                st.session_state.current_article = article_title
+                st.session_state.current_article_text = article_text
+                st.session_state.article_metadata = {"source": source_label, "url": article_url}
+                st.session_state.assignment_questions = generate_assignment_questions(article_title)
+                st.session_state.pending_article_import = None
+                st.success(f"✓ Article '{article_title}' imported and ready for analysis!")
+                st.rerun()
+            else:
+                st.error("Failed to process article. Please try again.")
+                st.session_state.pending_article_import = None
+        else:
+            st.warning("Extracted text is too short. Please check the article source.")
+            st.session_state.pending_article_import = None
+    
+    # Process imported article (from direct upload/paste)
+    if article_imported and article_text:
+        if len(article_text.strip()) > 100:  # Minimum text length
+            # Add to session vectorstore
+            source_label = article_source.replace("Search ", "").replace("Paste ", "").replace("Upload ", "")
+            if add_article_to_session(article_text, article_title, source_label, article_url):
+                st.session_state.current_article = article_title
+                st.session_state.current_article_text = article_text
+                st.session_state.article_metadata = {"source": source_label, "url": article_url}
+                st.session_state.assignment_questions = generate_assignment_questions(article_title)
+                st.success(f"✓ Article '{article_title}' imported and ready for analysis!")
+                st.rerun()
+            else:
+                st.error("Failed to process article. Please try again.")
+        else:
+            st.warning("Extracted text is too short. Please check the article source.")
+
+    st.markdown("---")
+    
+    # Article recommendation section - Clean and Simple
     st.markdown("### 📚 Find Articles to Analyze")
     st.markdown("")
     
@@ -799,14 +1059,6 @@ if not st.session_state.current_article:
             
             if i < len(articles_to_show) - 1:
                 st.markdown("---")
-    
-    st.markdown("---")
-    st.markdown("**Or upload your own article:**")
-    uploaded_file = st.file_uploader("", type=['pdf'], label_visibility="collapsed")
-    if uploaded_file:
-        st.session_state.current_article = uploaded_file.name
-        st.session_state.assignment_questions = generate_assignment_questions(uploaded_file.name)
-        st.rerun()
 
 # Assignment questions - Simplified
 if st.session_state.current_article:
