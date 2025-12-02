@@ -447,33 +447,10 @@ def sidebar_nav():
     if not logo_found:
         logo_html = '<img src="https://raw.githubusercontent.com/anikamahns907/agentTutor/main/assets/logo.png" class="sidebar-logo" alt="Isabelle Logo" onerror="this.style.display=\'none\'"/>'
     
-    # Load glow.svg
-    glow_html = ""
-    glow_paths = ["glow.svg", "assets/glow.svg"]
-    for glow_path in glow_paths:
-        if Path(glow_path).exists():
-            try:
-                glow_svg = Path(glow_path).read_text()
-                glow_b64 = base64.b64encode(glow_svg.encode('utf-8')).decode()
-                glow_html = f'<img src="data:image/svg+xml;base64,{glow_b64}" class="logo-glow" alt=""/>'
-                break
-            except Exception as e:
-                continue
-    
-    # If glow.svg not found locally, try GitHub URL
-    if not glow_html:
-        glow_html = '<img src="https://raw.githubusercontent.com/anikamahns907/agentTutor/main/glow.svg" class="logo-glow" alt="" onerror="this.style.display=\'none\'"/>'
-    
-    # Logo container - make logo clickable as home button with glow effect
     st.sidebar.markdown(
         f"""
         <div class="sidebar-logo-container">
-            <div class="logo-clickable" onclick="window.location.href='/?page=Home'; window.location.reload();">
-                <div class="logo-with-glow">
-                    {glow_html}
-                    {logo_html}
-                </div>
-            </div>
+            {logo_html}
             <div class="sidebar-title">PHP 1510/2510</div>
             <div class="sidebar-subtitle">Biostatistics</div>
         </div>
@@ -481,8 +458,9 @@ def sidebar_nav():
         unsafe_allow_html=True,
     )
 
-    # Menu (Home removed - logo is the home button)
+    # Menu
     menu = [
+        ("Home", "Home"),
         ("Analyze an Article", "Analyze"),
         ("Ask Questions", "Questions"),
         ("Course Materials", "Materials"),
