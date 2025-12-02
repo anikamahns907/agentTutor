@@ -1,0 +1,159 @@
+/* ============================================
+   GLOBAL LAYOUT RESET + THEME
+============================================ */
+main.block-container {
+    padding-top: 2rem !important;
+    padding-bottom: 2rem !important;
+}
+
+body, html {
+    font-family: 'Inter', sans-serif !important;
+    background-color: #0E1117 !important;
+    color: white !important;
+}
+
+/* ============================================
+   CARDS
+============================================ */
+.card, .card-container {
+    background: #161B22;
+    padding: 1.5rem;
+    border-radius: 12px;
+    margin-bottom: 1.5rem;
+    border: 1px solid #1F232B;
+}
+
+.article-card {
+    background: #161B22;
+    padding: 1.25rem;
+    border-radius: 10px;
+    border: 1px solid #1F232B;
+    margin-bottom: 1rem;
+    transition: border-color 0.2s ease;
+}
+
+.article-card:hover {
+    border-color: #38b6ff;
+}
+
+/* ============================================
+   BUTTONS
+============================================ */
+.stButton>button {
+    background-color: #38b6ff !important;
+    color: #ffffff !important;
+    border-radius: 8px !important;
+    padding: 0.6rem 1rem !important;
+    border: none !important;
+}
+
+/* ============================================
+   SIDEBAR
+============================================ */
+[data-testid="stSidebar"] {
+    background-color: #0E1117 !important;
+    padding: 24px 18px !important;
+    font-family: 'Inter', sans-serif;
+}
+
+/* Logo */
+.sidebar-logo-container {
+    text-align: center;
+    margin-bottom: 32px;
+}
+
+.logo-clickable {
+    cursor: pointer;
+    display: inline-block;
+    transition: opacity 0.2s ease;
+}
+
+.logo-clickable:hover {
+    opacity: 0.8;
+}
+
+.logo-with-glow {
+    position: relative;
+    display: inline-block;
+    width: 84px;
+    height: 84px;
+}
+
+.logo-glow {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.sidebar-logo {
+    position: relative;
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    object-fit: cover;
+    opacity: 0.95;
+    display: block;
+    z-index: 1;
+}
+
+/* Title */
+.sidebar-title {
+    color: #FFFFFF;
+    font-size: 15px;
+    margin-top: 10px;
+    font-weight: 500;
+}
+
+.sidebar-subtitle {
+    color: #9BA3AF;
+    font-size: 12px;
+}
+
+/* Nav items */
+.sidebar-item,
+.sidebar-item-active {
+    padding: 10px 14px;
+    margin: 5px 0;
+    border-radius: 6px;
+    color: #E6E6E6;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    user-select: none;
+}
+
+.sidebar-item:hover {
+    background-color: #1A1F25;
+}
+
+.sidebar-item-active {
+    background-color: #1A1F25;
+    border-left: 3px solid #38b6ff;
+    padding-left: 11px;
+}
+
+/* Section header */
+.sidebar-section-label {
+    margin-top: 30px;
+    font-size: 12px;
+    text-transform: uppercase;
+    color: #6B7080;
+    letter-spacing: 0.7px;
+    margin-bottom: 8px;
+}
+
+/* Links */
+.sidebar-resource a {
+    text-decoration: none;
+    color: #AAB4C0;
+    font-size: 13px;
+}
+
+.sidebar-resource a:hover {
+    color: #FFFFFF;
+}
