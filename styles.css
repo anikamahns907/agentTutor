@@ -1,15 +1,39 @@
 /* ============================================
    GLOBAL LAYOUT RESET + THEME
 ============================================ */
+/* Streamlit App Container */
+.stApp {
+    background-color: #0E1117 !important;
+}
+
+/* Main content area */
 main.block-container {
     padding-top: 2rem !important;
     padding-bottom: 2rem !important;
+    background-color: #0E1117 !important;
 }
 
+/* Body and HTML */
 body, html {
     font-family: 'Inter', sans-serif !important;
     background-color: #0E1117 !important;
     color: white !important;
+}
+
+/* Streamlit main container */
+div[data-testid="stAppViewContainer"] {
+    background-color: #0E1117 !important;
+}
+
+/* Main content wrapper */
+div[data-testid="stAppViewContainer"] > div {
+    background-color: #0E1117 !important;
+}
+
+/* Ensure all Streamlit containers have dark background */
+section[data-testid="stSidebar"] ~ div,
+div[data-testid="stVerticalBlock"] {
+    background-color: #0E1117 !important;
 }
 
 /* ============================================
@@ -33,18 +57,24 @@ body, html {
 }
 
 .article-card:hover {
-    border-color: #38b6ff;
+    border-color: #99c5ff;
 }
 
 /* ============================================
-   BUTTONS
+   BUTTONS (Using Logo Colors)
 ============================================ */
 .stButton>button {
-    background-color: #38b6ff !important;
+    background-color: #0d4784 !important;
     color: #ffffff !important;
     border-radius: 8px !important;
     padding: 0.6rem 1rem !important;
     border: none !important;
+    transition: background-color 0.2s ease !important;
+}
+
+.stButton>button:hover {
+    background-color: #99c5ff !important;
+    color: #0d4784 !important;
 }
 
 /* ============================================
@@ -102,7 +132,7 @@ body, html {
 
 .sidebar-item-active {
     background-color: #1A1F25;
-    border-left: 3px solid #38b6ff;
+    border-left: 3px solid #99c5ff;
     padding-left: 11px;
 }
 
@@ -121,8 +151,683 @@ body, html {
     text-decoration: none;
     color: #AAB4C0;
     font-size: 13px;
+    transition: color 0.2s ease !important;
 }
 
 .sidebar-resource a:hover {
-    color: #FFFFFF;
+    color: #99c5ff !important;
 }
+
+/* General links in content */
+a {
+    color: #99c5ff !important;
+    transition: color 0.2s ease !important;
+}
+
+a:hover {
+    color: #0d4784 !important;
+}
+
+/* ============================================
+   HIDE STREAMLIT HEADER AND DEPLOY BUTTON
+============================================ */
+/* Hide Streamlit header */
+header[data-testid="stHeader"] {
+    display: none !important;
+}
+
+/* Hide the deploy button */
+#MainMenu {
+    visibility: hidden !important;
+}
+
+/* Hide the hamburger menu */
+button[data-testid="baseButton-header"] {
+    display: none !important;
+}
+
+/* Hide Streamlit branding/header */
+.stDeployButton {
+    display: none !important;
+}
+
+/* Hide the header container */
+div[data-testid="stHeader"] {
+    display: none !important;
+}
+
+/* Ensure content starts at top */
+.stApp > header {
+    display: none !important;
+}
+
+/* Hide footer */
+footer {
+    visibility: hidden !important;
+    height: 0 !important;
+}
+
+/* ============================================
+   TEXT COLORS FOR DARK THEME
+============================================ */
+/* Headers */
+h1, h2, h3, h4, h5, h6 {
+    color: #FFFFFF !important;
+}
+
+/* Paragraphs and text */
+p, div, span {
+    color: #E6E6E6 !important;
+}
+
+/* Streamlit markdown text */
+.stMarkdown {
+    color: #E6E6E6 !important;
+}
+
+.stMarkdown p {
+    color: #E6E6E6 !important;
+}
+
+/* Input fields */
+.stTextInput > div > div > input {
+    background-color: #161B22 !important;
+    color: #E6E6E6 !important;
+    border: 1px solid #1F232B !important;
+    transition: border-color 0.2s ease !important;
+}
+
+.stTextInput > div > div > input:focus {
+    border-color: #99c5ff !important;
+    outline: none !important;
+}
+
+.stTextArea > div > div > textarea {
+    background-color: #161B22 !important;
+    color: #E6E6E6 !important;
+    border: 1px solid #1F232B !important;
+    transition: border-color 0.2s ease !important;
+}
+
+.stTextArea > div > div > textarea:focus {
+    border-color: #99c5ff !important;
+    outline: none !important;
+}
+
+/* Chat messages */
+.stChatMessage {
+    background-color: transparent !important;
+}
+
+/* Chat message containers - remove white backgrounds */
+div[data-testid="stChatMessage"] {
+    background-color: transparent !important;
+}
+
+div[data-testid="stChatMessage"] > div {
+    background-color: transparent !important;
+}
+
+/* Chat message content areas */
+.stChatMessage > div {
+    background-color: transparent !important;
+}
+
+.stChatMessage > div > div {
+    background-color: transparent !important;
+}
+
+/* Chat message row containers */
+div[data-testid="stChatMessage"] > div > div {
+    background-color: transparent !important;
+}
+
+/* Any white backgrounds in chat area */
+.stChatMessageContainer,
+div[class*="chat"] {
+    background-color: transparent !important;
+}
+
+/* Remove any white backgrounds from message containers */
+div[role="list"] {
+    background-color: transparent !important;
+}
+
+div[role="listitem"] {
+    background-color: transparent !important;
+}
+
+/* User chat message bubbles */
+.stChatMessage[data-testid="user"] > div > div {
+    background-color: #0d4784 !important;
+    color: #ffffff !important;
+    border-radius: 12px !important;
+    padding: 0.75rem 1rem !important;
+}
+
+/* Assistant chat message bubbles */
+.stChatMessage[data-testid="assistant"] > div > div {
+    background-color: #161B22 !important;
+    color: #E6E6E6 !important;
+    border-radius: 12px !important;
+    padding: 0.75rem 1rem !important;
+    border: 1px solid #1F232B !important;
+}
+
+/* Chat message avatars */
+.stChatMessage > div > div:first-child {
+    background-color: transparent !important;
+}
+
+/* Expanders */
+.streamlit-expanderHeader {
+    background-color: #161B22 !important;
+    color: #E6E6E6 !important;
+    border: 1px solid #1F232B !important;
+}
+
+.streamlit-expanderContent {
+    background-color: #161B22 !important;
+    color: #E6E6E6 !important;
+}
+
+/* ============================================
+   HIDE STREAMLIT HEADER AND DEPLOY BUTTON
+============================================ */
+/* Hide Streamlit header */
+header[data-testid="stHeader"] {
+    display: none !important;
+}
+
+/* Hide the deploy button */
+.stDeployButton {
+    display: none !important;
+}
+
+/* Hide the hamburger menu button */
+button[data-testid="baseButton-header"] {
+    display: none !important;
+}
+
+/* Hide main menu */
+#MainMenu {
+    visibility: hidden !important;
+}
+
+/* Hide header container */
+div[data-testid="stHeader"] {
+    display: none !important;
+}
+
+/* Hide footer */
+footer {
+    visibility: hidden !important;
+    height: 0 !important;
+}
+
+/* Adjust padding since header is gone */
+.stApp {
+    padding-top: 0 !important;
+}
+
+main.block-container {
+    padding-top: 1rem !important;
+}
+
+/* ============================================
+   COMPREHENSIVE DARK THEME FOR ALL COMPONENTS
+============================================ */
+
+/* Radio buttons */
+.stRadio > div {
+    background-color: transparent !important;
+}
+
+.stRadio > div > label {
+    color: #E6E6E6 !important;
+    background-color: #161B22 !important;
+    border: 1px solid #1F232B !important;
+    border-radius: 8px !important;
+    padding: 0.5rem 1rem !important;
+    margin: 0.25rem 0 !important;
+    transition: all 0.2s ease !important;
+}
+
+.stRadio > div > label[data-baseweb="radio"]:has(input:checked) {
+    background-color: #0d4784 !important;
+    border-color: #99c5ff !important;
+    color: #ffffff !important;
+}
+
+.stRadio > div > label:hover {
+    background-color: #1A1F25 !important;
+    border-color: #99c5ff !important;
+}
+
+.stRadio > div > label[data-baseweb="radio"] {
+    background-color: #161B22 !important;
+}
+
+/* File uploader */
+.stFileUploader {
+    background-color: #161B22 !important;
+    border: 1px solid #1F232B !important;
+    border-radius: 8px !important;
+}
+
+.stFileUploader > div {
+    background-color: #161B22 !important;
+}
+
+.stFileUploader label {
+    color: #E6E6E6 !important;
+}
+
+/* File uploader drop zone */
+.stFileUploader > div > div {
+    background-color: #161B22 !important;
+    border: 2px dashed #1F232B !important;
+    border-radius: 8px !important;
+}
+
+.stFileUploader > div > div:hover {
+    border-color: #99c5ff !important;
+    background-color: #1A1F25 !important;
+}
+
+/* File uploader text */
+.stFileUploader p,
+.stFileUploader span,
+.stFileUploader div {
+    color: #E6E6E6 !important;
+}
+
+/* File uploader button */
+.stFileUploader button {
+    background-color: #0d4784 !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 6px !important;
+}
+
+.stFileUploader button:hover {
+    background-color: #99c5ff !important;
+    color: #0d4784 !important;
+}
+
+/* BaseWeb file uploader components */
+[data-baseweb="file-uploader"] {
+    background-color: #161B22 !important;
+}
+
+[data-baseweb="file-uploader"] > div {
+    background-color: #161B22 !important;
+    border-color: #1F232B !important;
+}
+
+[data-baseweb="file-uploader"] span {
+    color: #E6E6E6 !important;
+}
+
+/* File uploader drop zone - more specific targeting */
+[data-baseweb="file-uploader"] > div > div {
+    background-color: #161B22 !important;
+    border: 2px dashed #1F232B !important;
+    border-radius: 8px !important;
+}
+
+[data-baseweb="file-uploader"] > div > div:hover {
+    border-color: #99c5ff !important;
+    background-color: #1A1F25 !important;
+}
+
+/* File uploader inner content */
+[data-baseweb="file-uploader"] p,
+[data-baseweb="file-uploader"] div[class*="upload"] {
+    background-color: transparent !important;
+    color: #E6E6E6 !important;
+}
+
+/* File uploader status message area */
+.stFileUploaderStatus {
+    background-color: #161B22 !important;
+    color: #E6E6E6 !important;
+}
+
+/* All file uploader text elements */
+.stFileUploader * {
+    color: #E6E6E6 !important;
+}
+
+.stFileUploader p,
+.stFileUploader div,
+.stFileUploader span {
+    color: #E6E6E6 !important;
+}
+
+/* File uploader drop area - ensure no white background */
+.stFileUploader > div > div[class*="drop"],
+.stFileUploader > div > div[class*="upload"],
+.stFileUploader > div > div[style*="background"] {
+    background-color: #161B22 !important;
+    background: #161B22 !important;
+}
+
+/* File uploader status and info sections */
+.stFileUploaderStatus,
+.stFileUploaderStatus > div {
+    background-color: #161B22 !important;
+    color: #E6E6E6 !important;
+}
+
+/* Ensure file uploader area has no white */
+.stFileUploader,
+.stFileUploader > *,
+.stFileUploader > * > * {
+    background-color: #161B22 !important;
+}
+
+/* But allow transparent for some nested elements */
+.stFileUploader > div > div[class*="icon"] {
+    background-color: transparent !important;
+}
+
+/* Chat input */
+.stChatInput > div > div {
+    background-color: #161B22 !important;
+    border: 1px solid #1F232B !important;
+    border-radius: 12px !important;
+    color: #FFFFFF !important;
+    transition: border-color 0.2s ease !important;
+    padding: 0.5rem !important;
+}
+
+.stChatInput > div > div:focus-within {
+    border-color: #99c5ff !important;
+}
+
+.stChatInput > div > div > input {
+    background-color: #161B22 !important;
+    color: #FFFFFF !important;
+}
+
+.stChatInput > div > div > input::placeholder {
+    color: #9BA3AF !important;
+    opacity: 1 !important;
+}
+
+/* Chat input textarea - specific targeting */
+textarea[data-testid="stChatInputTextArea"] {
+    background-color: #161B22 !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 12px !important;
+    padding: 0.75rem 1rem !important;
+}
+
+textarea[data-testid="stChatInputTextArea"]::placeholder {
+    color: #9BA3AF !important;
+    opacity: 1 !important;
+}
+
+textarea[data-testid="stChatInputTextArea"]:focus {
+    color: #FFFFFF !important;
+    outline: none !important;
+}
+
+/* Ensure all text in chat input is white */
+.stChatInput * {
+    color: #FFFFFF !important;
+}
+
+.stChatInput input,
+.stChatInput input::placeholder,
+.stChatInput textarea {
+    color: #FFFFFF !important;
+}
+
+.stChatInput input::placeholder,
+.stChatInput textarea::placeholder {
+    color: #9BA3AF !important;
+    opacity: 1 !important;
+}
+
+/* Target textarea by class as well */
+.stChatInput textarea,
+textarea.st-ae,
+textarea[class*="st-"] {
+    color: #FFFFFF !important;
+    background-color: #161B22 !important;
+    border-radius: 12px !important;
+}
+
+textarea[class*="st-"]::placeholder {
+    color: #9BA3AF !important;
+    opacity: 1 !important;
+}
+
+.stChatInput > div > div > button {
+    background-color: #0d4784 !important;
+    color: #ffffff !important;
+}
+
+.stChatInput > div > div > button:hover {
+    background-color: #99c5ff !important;
+    color: #0d4784 !important;
+}
+
+/* Captions */
+.stCaption {
+    color: #9BA3AF !important;
+}
+
+/* Alerts/Info boxes */
+.stAlert {
+    background-color: #161B22 !important;
+    border: 1px solid #1F232B !important;
+    color: #E6E6E6 !important;
+}
+
+.stAlert > div {
+    color: #E6E6E6 !important;
+}
+
+/* Success messages */
+div[data-baseweb="notification"] {
+    background-color: #161B22 !important;
+    color: #E6E6E6 !important;
+}
+
+/* Error messages */
+.stException {
+    background-color: #161B22 !important;
+    border: 1px solid #1F232B !important;
+    color: #E6E6E6 !important;
+}
+
+/* Spinner */
+.stSpinner > div {
+    border-color: #99c5ff !important;
+}
+
+/* Columns */
+[data-testid="column"] {
+    background-color: transparent !important;
+}
+
+/* Streamlit element containers - make transparent */
+div[class*="element-container"] {
+    background-color: transparent !important;
+}
+
+/* Markdown containers */
+.stMarkdownContainer {
+    background-color: transparent !important;
+}
+
+/* Divider/HR */
+hr {
+    border-color: #1F232B !important;
+}
+
+/* Select boxes (if any) */
+.stSelectbox > div > div {
+    background-color: #161B22 !important;
+    color: #E6E6E6 !important;
+    border: 1px solid #1F232B !important;
+    transition: border-color 0.2s ease !important;
+}
+
+.stSelectbox > div > div:focus,
+.stSelectbox > div > div:hover {
+    border-color: #99c5ff !important;
+}
+
+.stSelectbox label {
+    color: #E6E6E6 !important;
+}
+
+/* All input containers */
+div[data-baseweb="input"] {
+    background-color: #161B22 !important;
+}
+
+div[data-baseweb="input"] > input {
+    background-color: #161B22 !important;
+    color: #E6E6E6 !important;
+    border: 1px solid #1F232B !important;
+}
+
+/* Text area containers */
+div[data-baseweb="textarea"] {
+    background-color: #161B22 !important;
+}
+
+div[data-baseweb="textarea"] > textarea {
+    background-color: #161B22 !important;
+    color: #E6E6E6 !important;
+    border: 1px solid #1F232B !important;
+}
+
+/* Override any remaining white backgrounds in Streamlit elements */
+div[class*="element-container"],
+div[data-testid*="element-container"] {
+    background-color: transparent !important;
+}
+
+/* Ensure vertical blocks don't have white background */
+div[data-testid="stVerticalBlock"] > div {
+    background-color: transparent !important;
+}
+
+/* Horizontal blocks */
+div[data-testid="stHorizontalBlock"] {
+    background-color: transparent !important;
+}
+
+/* Any remaining Streamlit containers */
+section[data-testid*="container"] {
+    background-color: transparent !important;
+}
+
+/* BaseWeb components (used by Streamlit internally) */
+[data-baseweb] {
+    background-color: transparent !important;
+}
+
+/* Specific BaseWeb overrides */
+[data-baseweb="base-input"] {
+    background-color: #161B22 !important;
+}
+
+[data-baseweb="select"] {
+    background-color: #161B22 !important;
+}
+
+/* Remove any white backgrounds from nested divs */
+.stApp > div > div {
+    background-color: transparent !important;
+}
+
+/* Ensure main content area has dark background */
+section[data-testid="stAppViewContainer"] > div {
+    background-color: #0E1117 !important;
+}
+
+/* Override any inline styles that might set white backgrounds */
+div[style*="background"] {
+    background-color: #0E1117 !important;
+}
+
+/* Chat message containers */
+div[data-testid="stChatMessage"] {
+    background-color: transparent !important;
+}
+
+div[data-testid="stChatMessage"] > div {
+    background-color: transparent !important;
+}
+
+/* Fix white block at bottom - stBottomBlockContainer */
+div[data-testid="stBottomBlockContainer"] {
+    background-color: #0E1117 !important;
+    background: #0E1117 !important;
+}
+
+div[data-testid="stBottomBlockContainer"] > div {
+    background-color: #0E1117 !important;
+    background: #0E1117 !important;
+}
+
+div[data-testid="stBottomBlockContainer"] > div > div {
+    background-color: #0E1117 !important;
+    background: #0E1117 !important;
+}
+
+div[data-testid="stBottomBlockContainer"] * {
+    background-color: #0E1117 !important;
+    background: #0E1117 !important;
+}
+
+/* Override any inline styles on stBottomBlockContainer */
+div[data-testid="stBottomBlockContainer"][style] {
+    background-color: #0E1117 !important;
+    background: #0E1117 !important;
+}
+
+div[data-testid="stBottomBlockContainer"] [style*="background"] {
+    background-color: #0E1117 !important;
+    background: #0E1117 !important;
+}
+
+/* More aggressive override - target all possible selectors */
+div[data-testid="stBottomBlockContainer"],
+div[data-testid="stBottomBlockContainer"] *,
+div[data-testid="stBottomBlockContainer"] > *,
+div[data-testid="stBottomBlockContainer"] > * > *,
+div[data-testid="stBottomBlockContainer"] > * > * > * {
+    background-color: #0E1117 !important;
+    background: #0E1117 !important;
+    background-image: none !important;
+}
+
+/* Force override any white color values */
+div[data-testid="stBottomBlockContainer"][style*="white"],
+div[data-testid="stBottomBlockContainer"][style*="#fff"],
+div[data-testid="stBottomBlockContainer"][style*="#ffffff"] {
+    background-color: #0E1117 !important;
+    background: #0E1117 !important;
+}
+
+/* Ultimate override - use highest specificity */
+.stApp div[data-testid="stBottomBlockContainer"],
+.stApp div[data-testid="stBottomBlockContainer"] *,
+main div[data-testid="stBottomBlockContainer"],
+main div[data-testid="stBottomBlockContainer"] *,
+body div[data-testid="stBottomBlockContainer"],
+body div[data-testid="stBottomBlockContainer"] * {
+    background-color: #0E1117 !important;
+    background: #0E1117 !important;
+    background-image: none !important;
+}
+

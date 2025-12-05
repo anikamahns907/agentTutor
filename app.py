@@ -108,15 +108,15 @@ def load_index():
     if not index_path.exists():
         return None, None, None
     
-        with open(index_path, "rb") as f:
-            data = pickle.load(f)
+    with open(index_path, "rb") as f:
+        data = pickle.load(f)
     
     texts = data.get("texts", [])
     stored_embs = data.get("embs", np.array([]))
     metadata = data.get("metadata", [])
     
     # If embeddings missing or wrong dimension, recompute
-    if stored_embs.shape[1] != 384:
+    if len(stored_embs) > 0 and stored_embs.shape[1] != 384:
         recomputed = []
         for t in texts:
             recomputed.append(embed_text(t))
@@ -127,16 +127,33 @@ def load_index():
 
 try:
     texts, embs, metadata = load_index()
-except Exception:
+    if texts is None:
+        st.warning("⚠️ No document index found. Please run the ingestion script to create an index.")
+except Exception as e:
     texts, embs, metadata = None, None, None
+    st.warning(f"⚠️ Error loading index: {e}. Please run the ingestion script.")
 
 
 # ---------------------------------------------
 # Retrieve Context
 # ---------------------------------------------
-def retrieve_context(query, top_k=5):
+def retrieve_context(query, top_k=5, prioritize_article=False):
     contexts = []
     q_emb = embed_text(query)
+    
+    # If prioritizing article, search session articles first
+    if prioritize_article:
+        session_store = st.session_state.session_vectorstore
+        if session_store["embs"] is not None:
+            sims = np.dot(session_store["embs"], q_emb)
+            top_idx = np.argsort(sims)[-top_k:][::-1]
+
+            for i in top_idx:
+                contexts.append({
+                    "text": session_store["texts"][i],
+                    "score": float(sims[i]),
+                    "metadata": session_store["metadata"][i]
+                })
     
     # Search permanent index
     if texts is not None and embs is not None:
@@ -145,18 +162,19 @@ def retrieve_context(query, top_k=5):
         for i in top_idx:
             contexts.append({"text": texts[i], "score": float(sims[i]), "metadata": metadata[i]})
 
-    # Search uploaded articles in session
-    session_store = st.session_state.session_vectorstore
-    if session_store["embs"] is not None:
-        sims = np.dot(session_store["embs"], q_emb)
-        top_idx = np.argsort(sims)[-top_k:][::-1]
+    # If not prioritizing article, also search uploaded articles in session
+    if not prioritize_article:
+        session_store = st.session_state.session_vectorstore
+        if session_store["embs"] is not None:
+            sims = np.dot(session_store["embs"], q_emb)
+            top_idx = np.argsort(sims)[-top_k:][::-1]
 
-        for i in top_idx:
-            contexts.append({
-                "text": session_store["texts"][i],
-                "score": float(sims[i]),
-                "metadata": session_store["metadata"][i]
-            })
+            for i in top_idx:
+                contexts.append({
+                    "text": session_store["texts"][i],
+                    "score": float(sims[i]),
+                    "metadata": session_store["metadata"][i]
+                })
 
     contexts.sort(key=lambda x: x["score"], reverse=True)
     return contexts[:top_k]
@@ -185,34 +203,123 @@ def add_article_to_session(text, title, source, url=None):
 
 
 # ---------------------------------------------
+# Generate Assignment Questions
+# ---------------------------------------------
+def generate_assignment_questions(article_title: str):
+    """Generate the standard 10 questions for article analysis."""
+    return [
+        {
+            "question": "What statistical methods are used in this study?",
+            "focus": "Identifying methods",
+            "hint": "Look for mentions of tests, confidence intervals, p-values, regression, etc."
+        },
+        {
+            "question": "What is the study design? (e.g., randomized controlled trial, observational study, etc.)",
+            "focus": "Study design",
+            "hint": "Consider how participants were selected and assigned to groups"
+        },
+        {
+            "question": "How are the results interpreted? What do the statistical findings tell us?",
+            "focus": "Interpretation",
+            "hint": "Look at confidence intervals, p-values, and what conclusions are drawn"
+        },
+        {
+            "question": "What are the limitations of the statistical analysis?",
+            "focus": "Critical thinking",
+            "hint": "Consider sample size, assumptions, potential biases, etc."
+        },
+        {
+            "question": "How do the statistical methods used relate to concepts from our course?",
+            "focus": "Course connection",
+            "hint": "Connect to lecture materials, textbook concepts, and class discussions"
+        },
+        {
+            "question": "How would you explain the methods used to colleagues that don't have any statistics background?",
+            "focus": "Communication",
+            "hint": "Think about how to translate technical statistical concepts into plain language"
+        },
+        {
+            "question": "What's a 1-2 sentence summary of the main findings? Be as clear/concise as possible while still maintaining technical accuracy.",
+            "focus": "Summary",
+            "hint": "Focus on the key statistical findings and their practical significance"
+        },
+        {
+            "question": "If you had this data, would there be another analysis you'd perform to gain more insights? Explain it without technical jargon.",
+            "focus": "Critical thinking",
+            "hint": "Consider what additional questions could be answered or what alternative approaches might be valuable"
+        },
+        {
+            "question": "Would you recommend the authors communicate their findings differently? What changes would improve clarity?",
+            "focus": "Communication",
+            "hint": "Think about how statistical results are presented and whether they could be more accessible"
+        },
+        {
+            "question": "Pick a specific piece of output (like a p-value or summary statistic). Interpret it.",
+            "focus": "Interpretation",
+            "hint": "Choose a specific statistical result from the article and explain what it means in practical terms"
+        }
+    ]
+
+
+# ---------------------------------------------
 # Build Prompt for AI
 # ---------------------------------------------
-def build_prompt(user_query, contexts):
+def build_prompt(user_query, contexts, question_focus=None, is_article_feedback=False):
     ctx_text = "\n\n".join([f"[Source: {c['metadata'].get('source')}] {c['text']}" for c in contexts])
     
-    system = """
-You are Isabelle, a helpful biostatistics communication tutor for PHP 1510/2510.
-Focus on clarity, conceptual reasoning, plain-language explanations.
-DO NOT grade or score.
-Guide students, ask clarifying questions, and connect to course concepts.
-"""
+    system = """You are Isabelle, a helpful biostatistics communication tutor for PHP 1510/2510.
 
-    return f"{system}\n\nContext:\n{ctx_text}\n\nStudent question:\n{user_query}"
+Your role is to help students improve their ability to communicate statistical concepts clearly and effectively to diverse audiences.
+
+Key principles:
+- Focus on clarity, conceptual reasoning, and plain-language explanations
+- DO NOT grade or score - provide constructive, encouraging feedback
+- Guide students with clarifying questions when they struggle
+- Connect responses to course concepts from the textbook, lectures, and assignments
+- Emphasize translating technical statistical jargon into accessible language
+- Help students understand both the "what" and the "why" of statistical methods
+
+When providing feedback:
+- Acknowledge what the student got right
+- Gently point out areas that need improvement
+- Provide specific suggestions for how to improve
+- Connect their answer to relevant course materials when possible
+- Encourage deeper critical thinking
+- Use examples from the course materials to illustrate concepts"""
+
+    # Add question-specific guidance for article analysis
+    if is_article_feedback and question_focus:
+        focus_guidance = {
+            "Identifying methods": "Focus on whether the student correctly identified statistical tests, models, or procedures. Help them understand the purpose of each method.",
+            "Study design": "Assess if the student understands how the study was structured. Guide them to think about randomization, control groups, and potential biases.",
+            "Interpretation": "Evaluate how well the student interprets statistical results. Help them connect p-values, confidence intervals, and effect sizes to practical meaning.",
+            "Critical thinking": "Encourage the student to think beyond surface-level analysis. Help them consider assumptions, limitations, and alternative perspectives.",
+            "Course connection": "Assess how well the student links the article's methods to course concepts. Guide them to specific chapters, lectures, or examples from class.",
+            "Communication": "Focus on how well the student explains concepts in plain language. Help them avoid jargon while maintaining accuracy.",
+            "Summary": "Evaluate clarity and conciseness. Help the student balance technical accuracy with accessibility."
+        }
+        
+        guidance = focus_guidance.get(question_focus, "Provide constructive feedback that helps the student improve their understanding and communication.")
+        system += f"\n\nFor this question (Focus: {question_focus}):\n{guidance}"
+
+    return f"{system}\n\nContext from course materials:\n{ctx_text}\n\nStudent question/response:\n{user_query}"
 
 
 # ---------------------------------------------
 # AI Answer Helper
 # ---------------------------------------------
-def answer_question(query):
-    contexts = retrieve_context(query, top_k=5)
-    prompt = build_prompt(query, contexts)
+def answer_question(query, question_focus=None, is_article_feedback=False, max_tokens=800):
+    # Prioritize article context for article analysis feedback
+    prioritize_article = is_article_feedback
+    contexts = retrieve_context(query, top_k=5, prioritize_article=prioritize_article)
+    prompt = build_prompt(query, contexts, question_focus=question_focus, is_article_feedback=is_article_feedback)
     
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "system", "content": "You are Isabelle."},
                   {"role": "user", "content": prompt}],
         temperature=0.7,
-        max_tokens=500
+        max_tokens=max_tokens
     )
     
     ans = response.choices[0].message.content
@@ -331,7 +438,11 @@ def render_analyze_page():
             if added:
                 st.success(f"Imported: {article_title}")
                 st.session_state.current_article = article_title
-                st.session_state.assignment_questions = generate_assignment_questions(article_title)
+                try:
+                    st.session_state.assignment_questions = generate_assignment_questions(article_title)
+                except Exception as e:
+                    st.error(f"Error generating questions: {e}")
+                    st.session_state.assignment_questions = []
                 st.session_state.page = "Analyze"
                 st.rerun()
 
@@ -339,9 +450,21 @@ def render_analyze_page():
     # If an article is selected, show questions
     # -----------------------------------------------------
     if st.session_state.current_article:
-        st.markdown(f"### Analyzing: {st.session_state.current_article}")
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            st.markdown(f"### Analyzing: {st.session_state.current_article}")
+        with col2:
+            if st.button("Clear Article", key="clear_article"):
+                st.session_state.current_article = None
+                st.session_state.assignment_questions = []
+                st.session_state.session_vectorstore = {"texts": [], "embs": None, "metadata": []}
+                st.rerun()
 
         qs = st.session_state.assignment_questions
+        
+        if not qs:
+            st.warning("No questions available. Please re-upload the article.")
+            return
 
         for i, q in enumerate(qs, 1):
             with st.expander(f"Question {i}: {q['question']}"):
@@ -350,10 +473,22 @@ def render_analyze_page():
 
                 if st.button(f"Get Feedback", key=f"fb{i}", use_container_width=True):
                     if ans.strip():
-                        prompt = f"Question: {q['question']}\nStudent answer: {ans}"
-                        fb = answer_question(prompt)
-                        st.markdown("**Feedback:**")
-                        st.markdown(fb)
+                        try:
+                            # Build comprehensive prompt with question and answer
+                            prompt = f"Question: {q['question']}\n\nStudent answer: {ans}\n\nPlease provide constructive feedback on this answer."
+                            # Use enhanced feedback with article context and question focus
+                            with st.spinner("Analyzing your answer..."):
+                                fb = answer_question(
+                                    prompt, 
+                                    question_focus=q['focus'],
+                                    is_article_feedback=True,
+                                    max_tokens=1000
+                                )
+                            st.markdown("**Feedback:**")
+                            st.markdown(fb)
+                        except Exception as e:
+                            st.error(f"Error generating feedback: {e}")
+                            st.info("Please try again or ask on EdStem for help.")
                     else:
                         st.info("Enter an answer first.")
 
@@ -497,7 +632,7 @@ def sidebar_nav():
         }
         .nav-button-wrapper.active [data-testid="stButton"] button {
             background-color: #1A1F25 !important;
-            border-left: 3px solid #38b6ff !important;
+            border-left: 3px solid #99c5ff !important;
             padding-left: 11px !important;
             color: #FFFFFF !important;
     }

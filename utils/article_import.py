@@ -1,7 +1,7 @@
 import re
 import xml.etree.ElementTree as ET
 from html import unescape
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 from urllib.parse import quote_plus
 
 import requests
@@ -59,7 +59,7 @@ def prepare_article_documents(
     text: str,
     article_title: str,
     source_label: str,
-    source_url: str | None = None,
+    source_url: Optional[str] = None,
 ) -> Tuple[List[str], List[Dict]]:
     """Return chunked text + metadata tuples ready for embedding."""
     chunks = chunk_text(text)
