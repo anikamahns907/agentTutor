@@ -67,6 +67,10 @@ if "assignment_questions" not in st.session_state:
     st.session_state.assignment_questions = []
 if "session_vectorstore" not in st.session_state:
     st.session_state.session_vectorstore = {"texts": [], "embs": None, "metadata": []}
+if "analyze_chat_started" not in st.session_state:
+    st.session_state.analyze_chat_started = False
+if "analyze_messages" not in st.session_state:
+    st.session_state.analyze_messages = []
 
 # ---------------------------------------------
 # Load Embedding Model (cached)
@@ -108,8 +112,8 @@ def load_index():
     if not index_path.exists():
         return None, None, None
     
-    with open(index_path, "rb") as f:
-        data = pickle.load(f)
+        with open(index_path, "rb") as f:
+            data = pickle.load(f)
     
     texts = data.get("texts", [])
     stored_embs = data.get("embs", np.array([]))
@@ -164,17 +168,17 @@ def retrieve_context(query, top_k=5, prioritize_article=False):
 
     # If not prioritizing article, also search uploaded articles in session
     if not prioritize_article:
-        session_store = st.session_state.session_vectorstore
-        if session_store["embs"] is not None:
-            sims = np.dot(session_store["embs"], q_emb)
-            top_idx = np.argsort(sims)[-top_k:][::-1]
+    session_store = st.session_state.session_vectorstore
+    if session_store["embs"] is not None:
+        sims = np.dot(session_store["embs"], q_emb)
+        top_idx = np.argsort(sims)[-top_k:][::-1]
 
-            for i in top_idx:
-                contexts.append({
-                    "text": session_store["texts"][i],
-                    "score": float(sims[i]),
-                    "metadata": session_store["metadata"][i]
-                })
+        for i in top_idx:
+            contexts.append({
+                "text": session_store["texts"][i],
+                "score": float(sims[i]),
+                "metadata": session_store["metadata"][i]
+            })
 
     contexts.sort(key=lambda x: x["score"], reverse=True)
     return contexts[:top_k]
@@ -347,7 +351,7 @@ def render_home_page():
 
     with c1:
         st.markdown("""
-        <div class='card'>
+        <div class='card' style="cursor: pointer;" onclick="go('Analyze')">
             <h3>Analyze Articles</h3>
             <p>Answer structured questions and get feedback.</p>
         </div>
@@ -355,7 +359,7 @@ def render_home_page():
 
     with c2:
         st.markdown("""
-        <div class='card'>
+        <div class='card' style="cursor: pointer;" onclick="go('Questions')">
             <h3>Ask Questions</h3>
             <p>Learn statistical methods and interpretation concepts.</p>
         </div>
@@ -363,7 +367,7 @@ def render_home_page():
 
     with c3:
         st.markdown("""
-        <div class='card'>
+        <div class='card' style="cursor: pointer;" onclick="go('Materials')">
             <h3>Course Materials</h3>
             <p>Access lecture notes, homework, and textbook excerpts.</p>
         </div>
@@ -377,127 +381,406 @@ def render_home_page():
 
 
 def render_analyze_page():
+    # Initialize session state variables if needed
+    if "current_question_index" not in st.session_state:
+        st.session_state.current_question_index = 0
+    if "question_answers" not in st.session_state:
+        st.session_state.question_answers = {}
+    if "pending_article_text" not in st.session_state:
+        st.session_state.pending_article_text = None
+    if "pending_article_title" not in st.session_state:
+        st.session_state.pending_article_title = None
+    if "pending_article_url" not in st.session_state:
+        st.session_state.pending_article_url = None
+    
+    # Load logo for avatar
+    logo_paths = ["assets/logo.png", "assets/logo.jpg", "logo.png", "logo.jpg"]
+    logo_avatar = None
+    
+    for logo_path in logo_paths:
+        if Path(logo_path).exists():
+            try:
+                logo_avatar = logo_path
+                break
+            except Exception:
+                continue
+    
+    # If chat hasn't started, show start button
+    if not st.session_state.analyze_chat_started:
     st.markdown("## Analyze an Article")
+        st.markdown("""
+        <div style="text-align: center; padding: 3rem 0;">
+            <p style="font-size: 1.2rem; color: #E6E6E6; margin-bottom: 2rem;">
+                Start a conversation with Isabelle to analyze research articles and get feedback on your understanding.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            if st.button("Start Chat with Isabelle", use_container_width=True, type="primary"):
+                st.session_state.analyze_chat_started = True
+                # Add welcome message
+                welcome_msg = """Hi! I'm Isabelle, your biostatistics communication tutor. 
 
-    source = st.radio(
-        "Select article source:",
-        ["Upload PDF", "Paste URL", "Paste Text"],
-        key="src_choice",
-    )
+I'm here to help you analyze research articles and practice explaining statistical concepts clearly. 
 
+**How would you like to share an article with me?**"""
+                st.session_state.analyze_messages.append({
+                    "role": "assistant",
+                    "content": welcome_msg
+                })
+                st.rerun()
+        return
+
+    # Chat interface
+    # Display chat history
+    prev_role = None
+    for idx, msg in enumerate(st.session_state.analyze_messages):
+        # Only show avatar if role changed from previous message
+        # If same role as previous message, don't show avatar
+        if msg["role"] == "assistant":
+            # Show avatar ONLY if previous message was NOT from assistant (i.e., from user or first message)
+            if prev_role is None or prev_role != "assistant":
+                # Show avatar - pass logo
+                with st.chat_message(msg["role"], avatar=logo_avatar):
+                    st.markdown(msg["content"])
+            else:
+                # Same role as previous, no avatar - don't pass avatar parameter
+                with st.chat_message(msg["role"]):
+                    st.markdown(msg["content"])
+        else:
+            # User messages - no avatar
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
+        
+        # Update prev_role after displaying message
+        prev_role = msg["role"]
+        
+        # Show buttons if it's the welcome message (only for assistant messages)
+        if msg["role"] == "assistant" and "How would you like to share" in msg["content"]:
+            # Check if user hasn't already chosen
+            if not st.session_state.get("analyze_upload_mode"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("Upload PDF", key=f"btn_upload_pdf_{idx}", use_container_width=True):
+                        st.session_state.analyze_messages.append({
+                            "role": "user",
+                            "content": "I'd like to upload a PDF"
+                        })
+                        st.session_state.analyze_upload_mode = "pdf"
+                        st.rerun()
+                with col2:
+                    if st.button("Paste URL", key=f"btn_paste_url_{idx}", use_container_width=True):
+                        st.session_state.analyze_messages.append({
+                            "role": "user",
+                            "content": "I'd like to paste a URL"
+                        })
+                        st.session_state.analyze_upload_mode = "url"
+                        st.rerun()
+                st.markdown("""
+                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #1F232B;">
+                    <p style="color: #9BA3AF; font-size: 0.9rem; margin-bottom: 0.5rem;">You can explore and find articles to analyze here:</p>
+                    <p style="margin: 0.25rem 0;">
+                        <a href="https://bruknow.library.brown.edu/discovery/search?vid=01BU_INST:BROWN" target="_blank" style="color: #99c5ff; text-decoration: none;">BruKnow Library</a> - Search for biostatistics and public health articles
+                    </p>
+                    <p style="margin: 0.25rem 0;">
+                        <a href="https://www.nature.com" target="_blank" style="color: #99c5ff; text-decoration: none;">Nature.com</a> - Public health and medical research
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
+
+    # Handle article upload based on mode
     article_text = None
     article_title = None
     article_url = None
+    upload_mode = st.session_state.get("analyze_upload_mode", None)
 
-    # -----------------------------------------------------
-    # Upload PDF
-    # -----------------------------------------------------
-    if source == "Upload PDF":
-        pdf = st.file_uploader("Upload PDF", type=['pdf'])
-        if pdf and st.button("Extract Text", key="extract_pdf"):
+    # Show upload interface if mode is set and no article yet
+    if upload_mode == "pdf" and not st.session_state.current_article:
+        # Show assistant message if not already shown
+        upload_msg_shown = any("Great! Please upload" in m.get("content", "") for m in st.session_state.analyze_messages if m.get("role") == "assistant")
+        if not upload_msg_shown:
+            # Check if previous message was from assistant
+            last_msg_role = st.session_state.analyze_messages[-1]["role"] if st.session_state.analyze_messages else None
+            show_upload_avatar = logo_avatar if last_msg_role != "assistant" else None
+            with st.chat_message("assistant", avatar=show_upload_avatar):
+                st.markdown("Great! Please upload your PDF file below.")
+                st.session_state.analyze_messages.append({
+                    "role": "assistant",
+                    "content": "Great! Please upload your PDF file below."
+                })
+            st.rerun()
+        
+        # Show file uploader
+        pdf = st.file_uploader("Upload PDF", type=['pdf'], key="analyze_pdf_upload", label_visibility="collapsed")
+        if pdf:
+            if st.button("Extract and Analyze", key="extract_pdf_btn", use_container_width=True):
             try:
                 article_text = extract_text_from_pdf(pdf.read())
                 article_title = pdf.name
+                    # Store in session state so it persists across rerun
+                    st.session_state.pending_article_text = article_text
+                    st.session_state.pending_article_title = article_title
+                    st.session_state.pending_article_url = None
+                    st.session_state.analyze_messages.append({
+                        "role": "user",
+                        "content": f"Uploaded: {article_title}"
+                    })
+                    st.rerun()
             except Exception as e:
                 st.error(f"Error extracting text: {e}")
 
-    # -----------------------------------------------------
-    # Paste URL
-    # -----------------------------------------------------
-    if source == "Paste URL":
-        url = st.text_input("Paste article URL")
-        if url and st.button("Extract Text", key="extract_url"):
+    elif upload_mode == "url" and not st.session_state.current_article:
+        # Show assistant message if not already shown
+        url_msg_shown = any("Perfect! Paste the article" in m.get("content", "") for m in st.session_state.analyze_messages if m.get("role") == "assistant")
+        if not url_msg_shown:
+            # Check if previous message was from assistant
+            last_msg_role = st.session_state.analyze_messages[-1]["role"] if st.session_state.analyze_messages else None
+            show_url_avatar = logo_avatar if last_msg_role != "assistant" else None
+            with st.chat_message("assistant", avatar=show_url_avatar):
+                st.markdown("Perfect! Paste the article URL below.")
+                st.session_state.analyze_messages.append({
+                    "role": "assistant",
+                    "content": "Perfect! Paste the article URL below."
+                })
+            st.rerun()
+        
+        # Show URL input
+        url = st.text_input("Paste article URL", key="analyze_url_input", label_visibility="collapsed", placeholder="https://...")
+        if url:
+            if st.button("Extract and Analyze", key="extract_url_btn", use_container_width=True):
             try:
                 article_text = extract_text_from_url(url)
                 article_url = url
                 article_title = url.split("/")[-1] or "Article"
+                    # Store in session state so it persists across rerun
+                    st.session_state.pending_article_text = article_text
+                    st.session_state.pending_article_title = article_title
+                    st.session_state.pending_article_url = article_url
+                    st.session_state.analyze_messages.append({
+                        "role": "user",
+                        "content": f"Shared URL: {url}"
+                    })
+                    st.rerun()
             except Exception as e:
                 st.error(f"Error fetching article: {e}")
 
-    # -----------------------------------------------------
-    # Paste Text
-    # -----------------------------------------------------
-    if source == "Paste Text":
-        raw = st.text_area("Paste text", height=200)
-        if raw and st.button("Use Text", key="use_text"):
-            article_text = clean_extracted_text(raw)
-            article_title = "Pasted Article"
-
-    # If article extracted, add it
+    # If article extracted, add it and show questions
+    # Check session state first, then local variable
+    article_text = st.session_state.pending_article_text if st.session_state.pending_article_text else article_text
     if article_text:
+        # Use session state values if available
+        if st.session_state.pending_article_title:
+            article_title = st.session_state.pending_article_title
+        if st.session_state.pending_article_url:
+            article_url = st.session_state.pending_article_url
         if len(article_text) < 120:
-            st.warning("Extracted text too short.")
+            # Check if previous message was from assistant
+            last_msg_role = st.session_state.analyze_messages[-1]["role"] if st.session_state.analyze_messages else None
+            show_warning_avatar = logo_avatar if last_msg_role != "assistant" else None
+            with st.chat_message("assistant", avatar=show_warning_avatar):
+                st.warning("The extracted text seems too short. Please try a different article.")
         else:
             added = add_article_to_session(
                 article_text,
                 article_title,
-                source,
+                upload_mode or "upload",
                 article_url
             )
 
             if added:
-                st.success(f"Imported: {article_title}")
                 st.session_state.current_article = article_title
                 try:
-                    st.session_state.assignment_questions = generate_assignment_questions(article_title)
+                st.session_state.assignment_questions = generate_assignment_questions(article_title)
+                    st.session_state.current_question_index = 0
+                    st.session_state.question_answers = {}
+                    
+                    success_msg = f"""Successfully imported: **{article_title}**
+
+I've analyzed your article! I'll guide you through 10 questions to help you practice explaining statistical concepts clearly.
+
+Let's start with the first question:"""
+                    st.session_state.analyze_messages.append({
+                        "role": "assistant",
+                        "content": success_msg
+                    })
+                    
+                    # Add the first question to chat
+                    if st.session_state.assignment_questions:
+                        first_q = st.session_state.assignment_questions[0]
+                        question_msg = f"""**Question 1:** {first_q['question']}
+
+**Focus:** {first_q['focus']}
+**Hint:** {first_q['hint']}
+
+Please answer this question in the chat below."""
+                        st.session_state.analyze_messages.append({
+                            "role": "assistant",
+                            "content": question_msg
+                        })
                 except Exception as e:
                     st.error(f"Error generating questions: {e}")
                     st.session_state.assignment_questions = []
-                st.session_state.page = "Analyze"
+                # Clear pending article data
+                st.session_state.pending_article_text = None
+                st.session_state.pending_article_title = None
+                st.session_state.pending_article_url = None
+                st.session_state.analyze_upload_mode = None
                 st.rerun()
 
-    # -----------------------------------------------------
-    # If an article is selected, show questions
-    # -----------------------------------------------------
+    # If an article is selected, handle conversational question flow
     if st.session_state.current_article:
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            st.markdown(f"### Analyzing: {st.session_state.current_article}")
-        with col2:
-            if st.button("Clear Article", key="clear_article"):
-                st.session_state.current_article = None
-                st.session_state.assignment_questions = []
-                st.session_state.session_vectorstore = {"texts": [], "embs": None, "metadata": []}
-                st.rerun()
-
         qs = st.session_state.assignment_questions
+        current_idx = st.session_state.current_question_index
         
-        if not qs:
-            st.warning("No questions available. Please re-upload the article.")
-            return
+        # Check if user has answered the current question and move to next
+        if qs and current_idx < len(qs):
+            current_q = qs[current_idx]
+            question_key = f"q{current_idx + 1}"
+            
+            # Check if this question was just answered in chat
+            last_user_msg = None
+            last_assistant_msg = None
+            if len(st.session_state.analyze_messages) >= 2:
+                last_user_msg = st.session_state.analyze_messages[-1] if st.session_state.analyze_messages[-1].get("role") == "user" else None
+                last_assistant_msg = st.session_state.analyze_messages[-2] if len(st.session_state.analyze_messages) >= 2 and st.session_state.analyze_messages[-2].get("role") == "assistant" else None
+            
+            # If user just answered and we haven't asked next question yet
+            if last_user_msg and last_assistant_msg and f"Question {current_idx + 1}:" in last_assistant_msg.get("content", ""):
+                # Check if we need to ask next question
+                if current_idx + 1 < len(qs):
+                    next_q = qs[current_idx + 1]
+                    question_msg = f"""**Question {current_idx + 2}:** {next_q['question']}
 
-        for i, q in enumerate(qs, 1):
-            with st.expander(f"Question {i}: {q['question']}"):
-                st.caption(f"Focus: {q['focus']} — Hint: {q['hint']}")
-                ans = st.text_area("Your answer:", key=f"a{i}", height=120)
+**Focus:** {next_q['focus']}
+**Hint:** {next_q['hint']}
 
-                if st.button(f"Get Feedback", key=f"fb{i}", use_container_width=True):
-                    if ans.strip():
-                        try:
-                            # Build comprehensive prompt with question and answer
-                            prompt = f"Question: {q['question']}\n\nStudent answer: {ans}\n\nPlease provide constructive feedback on this answer."
-                            # Use enhanced feedback with article context and question focus
-                            with st.spinner("Analyzing your answer..."):
-                                fb = answer_question(
-                                    prompt, 
-                                    question_focus=q['focus'],
-                                    is_article_feedback=True,
-                                    max_tokens=1000
-                                )
-                            st.markdown("**Feedback:**")
-                            st.markdown(fb)
-                        except Exception as e:
-                            st.error(f"Error generating feedback: {e}")
-                            st.info("Please try again or ask on EdStem for help.")
+Please answer this question in the chat below."""
+                    st.session_state.analyze_messages.append({
+                        "role": "assistant",
+                        "content": question_msg
+                    })
+                    st.session_state.current_question_index = current_idx + 1
+                    st.rerun()
+
+    # Chat input at bottom
+    if st.session_state.analyze_chat_started:
+        # Determine placeholder based on context
+        if st.session_state.current_article and st.session_state.assignment_questions:
+            current_idx = st.session_state.current_question_index
+            if current_idx < len(st.session_state.assignment_questions):
+                placeholder = f"Answer Question {current_idx + 1}..."
+            else:
+                placeholder = "Ask Isabelle about the article or analysis..."
+        else:
+            placeholder = "Ask Isabelle about the article or analysis..."
+        
+        user_input = st.chat_input(placeholder)
+        if user_input:
+            # Check previous message role BEFORE adding user message
+            last_msg_role = st.session_state.analyze_messages[-1]["role"] if st.session_state.analyze_messages else None
+            st.session_state.analyze_messages.append({"role": "user", "content": user_input})
+            
+            # Check if this is an answer to a current question
+            if st.session_state.current_article and st.session_state.assignment_questions:
+                current_idx = st.session_state.current_question_index
+                if current_idx < len(st.session_state.assignment_questions):
+                    current_q = st.session_state.assignment_questions[current_idx]
+                    # Store the answer
+                    st.session_state.question_answers[current_idx] = user_input
+                    
+                    # Provide feedback on the answer
+                    # Show avatar since previous message was from user (we checked before adding)
+                    show_feedback_avatar = logo_avatar
+                    
+                    with st.chat_message("assistant", avatar=show_feedback_avatar):
+                        with st.spinner("Analyzing your answer..."):
+                            prompt = f"Question: {current_q['question']}\n\nStudent answer: {user_input}\n\nPlease provide constructive feedback on this answer."
+                            feedback = answer_question(
+                                prompt, 
+                                question_focus=current_q['focus'],
+                                is_article_feedback=True,
+                                max_tokens=1000
+                            )
+                            st.markdown(f"**Feedback on Question {current_idx + 1}:**\n\n{feedback}")
+                    st.session_state.analyze_messages.append({"role": "assistant", "content": f"**Feedback on Question {current_idx + 1}:**\n\n{feedback}"})
+                    
+                    # Move to next question if available
+                    # Next question won't show avatar since previous message was from assistant (feedback)
+                    # This will be handled correctly in the display loop
+                    if current_idx + 1 < len(st.session_state.assignment_questions):
+                        next_q = st.session_state.assignment_questions[current_idx + 1]
+                        question_msg = f"""**Question {current_idx + 2}:** {next_q['question']}
+
+**Focus:** {next_q['focus']}
+**Hint:** {next_q['hint']}
+
+Please answer this question in the chat below."""
+                        st.session_state.analyze_messages.append({
+                            "role": "assistant",
+                            "content": question_msg
+                        })
+                        st.session_state.current_question_index = current_idx + 1
                     else:
-                        st.info("Enter an answer first.")
+                        # All questions answered
+                        completion_msg = """Great work! You've completed all 10 analysis questions. 
+
+Would you like to:
+- Review your answers
+- Ask follow-up questions about the article
+- Start analyzing a new article"""
+                        st.session_state.analyze_messages.append({
+                            "role": "assistant",
+                            "content": completion_msg
+                        })
+                        st.session_state.current_question_index = len(st.session_state.assignment_questions)
+            else:
+                # General question about the article
+                # Previous message was from user (we checked before adding), so show avatar
+                show_response_avatar = logo_avatar
+                
+                with st.chat_message("assistant", avatar=show_response_avatar):
+                    with st.spinner("Thinking..."):
+                        response = answer_question(user_input, is_article_feedback=bool(st.session_state.current_article))
+                        st.markdown(response)
+                st.session_state.analyze_messages.append({"role": "assistant", "content": response})
+            st.rerun()
+        
+        # Clear chat button
+        if st.button("Start New Analysis", key="clear_analyze_chat"):
+            st.session_state.analyze_chat_started = False
+            st.session_state.analyze_messages = []
+            st.session_state.current_article = None
+            st.session_state.assignment_questions = []
+            st.session_state.current_question_index = 0
+            st.session_state.question_answers = {}
+            st.session_state.pending_article_text = None
+            st.session_state.pending_article_title = None
+            st.session_state.pending_article_url = None
+            st.session_state.session_vectorstore = {"texts": [], "embs": None, "metadata": []}
+            st.session_state.analyze_upload_mode = None
+            st.rerun()
 
 
 def render_ask_questions_page():
     st.markdown("## Ask Questions")
 
+    # Load logo for avatar
+    logo_paths = ["assets/logo.png", "assets/logo.jpg", "logo.png", "logo.jpg"]
+    logo_avatar = None
+    
+    for logo_path in logo_paths:
+        if Path(logo_path).exists():
+            try:
+                logo_avatar = logo_path
+                break
+            except Exception:
+                continue
+
     for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
+        avatar = logo_avatar if msg["role"] == "assistant" else None
+        with st.chat_message(msg["role"], avatar=avatar):
             st.markdown(msg["content"])
 
     user_q = st.chat_input("Ask about statistical methods or concepts...")
@@ -507,7 +790,7 @@ def render_ask_questions_page():
         with st.chat_message("user"):
             st.markdown(user_q)
 
-        with st.chat_message("assistant"):
+        with st.chat_message("assistant", avatar=logo_avatar):
             with st.spinner("Thinking..."):
                 ans = answer_question(user_q)
                 st.markdown(ans)
@@ -586,8 +869,7 @@ def sidebar_nav():
         f"""
         <div class="sidebar-logo-container">
             {logo_html}
-            <div class="sidebar-title">PHP 1510/2510</div>
-            <div class="sidebar-subtitle">Biostatistics</div>
+            <div class="sidebar-title">Your Biostatistics Peer</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -667,8 +949,17 @@ if css_path.exists():
     st.markdown(f"<style>{css_path.read_text()}</style>",
                 unsafe_allow_html=True)
 
+# Set favicon/icon
+icon_paths = ["assets/logo.png", "logo.png"]
+page_icon = None
+for icon_path in icon_paths:
+    if Path(icon_path).exists():
+        page_icon = icon_path
+        break
+
 st.set_page_config(
     page_title="Isabelle — PHP1510",
+    page_icon=page_icon if page_icon else "📊",
     layout="wide",
     initial_sidebar_state="expanded"
 )

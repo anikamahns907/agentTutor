@@ -31,7 +31,16 @@ div[data-testid="stAppViewContainer"] > div {
 }
 
 /* Ensure all Streamlit containers have dark background */
-section[data-testid="stSidebar"] ~ div,
+section[data-testid="stSidebar"] ~ div {
+    background-color: #0E1117 !important;
+}
+
+/* Sidebar vertical blocks should match sidebar background */
+[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] {
+    background-color: #161B22 !important;
+}
+
+/* Main content vertical blocks */
 div[data-testid="stVerticalBlock"] {
     background-color: #0E1117 !important;
 }
@@ -45,6 +54,13 @@ div[data-testid="stVerticalBlock"] {
     border-radius: 12px;
     margin-bottom: 1.5rem;
     border: 1px solid #1F232B;
+    transition: all 0.2s ease;
+}
+
+.card:hover {
+    border-color: #99c5ff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(153, 197, 255, 0.1);
 }
 
 .article-card {
@@ -77,13 +93,46 @@ div[data-testid="stVerticalBlock"] {
     color: #0d4784 !important;
 }
 
+/* Chat buttons in analyze page */
+.stChatMessage .stButton>button {
+    background-color: #0d4784 !important;
+    color: #ffffff !important;
+    border: 1px solid #99c5ff !important;
+    margin: 0.25rem 0 !important;
+}
+
+.stChatMessage .stButton>button:hover {
+    background-color: #99c5ff !important;
+    color: #0d4784 !important;
+    border-color: #0d4784 !important;
+}
+
 /* ============================================
    SIDEBAR
 ============================================ */
 [data-testid="stSidebar"] {
-    background-color: #0E1117 !important;
+    background-color: #161B22 !important;
     padding: 24px 18px !important;
     font-family: 'Inter', sans-serif;
+}
+
+/* Sidebar content container */
+[data-testid="stSidebarContent"] {
+    background-color: #161B22 !important;
+}
+
+[data-testid="stSidebarContent"] > div {
+    background-color: #161B22 !important;
+}
+
+/* Sidebar header */
+[data-testid="stSidebarHeader"] {
+    background-color: #161B22 !important;
+}
+
+/* Sidebar user content */
+[data-testid="stSidebarUserContent"] {
+    background-color: #161B22 !important;
 }
 
 /* Logo */
@@ -105,7 +154,8 @@ div[data-testid="stVerticalBlock"] {
     color: #FFFFFF;
     font-size: 15px;
     margin-top: 10px;
-    font-weight: 500;
+    font-weight: 300;
+    font-style: italic;
 }
 
 .sidebar-subtitle {
@@ -317,6 +367,25 @@ div[role="listitem"] {
 /* Chat message avatars */
 .stChatMessage > div > div:first-child {
     background-color: transparent !important;
+}
+
+/* Hide user avatars/icons */
+.stChatMessage[data-testid="user"] > div > div:first-child,
+.stChatMessage[data-testid="user"] img,
+.stChatMessage[data-testid="user"] svg,
+.stChatMessage[data-testid="user"] > div > div:first-child > * {
+    display: none !important;
+    visibility: hidden !important;
+    width: 0 !important;
+    height: 0 !important;
+    opacity: 0 !important;
+}
+
+/* Hide assistant avatars when they shouldn't be shown (consecutive messages) */
+/* This will be handled by not passing avatar parameter, but add CSS as backup */
+.stChatMessage[data-testid="assistant"] > div > div:first-child:empty,
+.stChatMessage[data-testid="assistant"] > div > div:first-child:has(img[style*="display: none"]) {
+    display: none !important;
 }
 
 /* Expanders */
@@ -609,11 +678,66 @@ textarea[class*="st-"]::placeholder {
 .stChatInput > div > div > button {
     background-color: #0d4784 !important;
     color: #ffffff !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
 }
 
 .stChatInput > div > div > button:hover {
     background-color: #99c5ff !important;
     color: #0d4784 !important;
+}
+
+/* Ensure send button is always visible and white */
+.stChatInput button,
+.stChatInput > div > div > button,
+.stChatInput > div > div > div > button,
+button[data-testid="stChatInputButton"],
+button[aria-label*="Send"],
+button[aria-label*="send"] {
+    background-color: #0d4784 !important;
+    color: #ffffff !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: inline-block !important;
+}
+
+.stChatInput button:hover,
+.stChatInput > div > div > button:hover,
+.stChatInput > div > div > div > button:hover,
+button[data-testid="stChatInputButton"]:hover,
+button[aria-label*="Send"]:hover,
+button[aria-label*="send"]:hover {
+    background-color: #99c5ff !important;
+    color: #0d4784 !important;
+}
+
+/* Ensure placeholder text is always visible */
+.stChatInput input::placeholder,
+.stChatInput textarea::placeholder,
+textarea[data-testid="stChatInputTextArea"]::placeholder,
+input[placeholder*="Ask"]::placeholder,
+textarea[placeholder*="Ask"]::placeholder {
+    color: #9BA3AF !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* Ensure input text stays white */
+.stChatInput input,
+.stChatInput textarea,
+textarea[data-testid="stChatInputTextArea"],
+input[placeholder*="Ask"],
+textarea[placeholder*="Ask"] {
+    color: #FFFFFF !important;
+}
+
+.stChatInput input:focus,
+.stChatInput textarea:focus,
+textarea[data-testid="stChatInputTextArea"]:focus,
+input[placeholder*="Ask"]:focus,
+textarea[placeholder*="Ask"]:focus {
+    color: #FFFFFF !important;
 }
 
 /* Captions */
