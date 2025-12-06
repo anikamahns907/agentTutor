@@ -1,0 +1,3 @@
+"""
+Text extraction service.
+"""
